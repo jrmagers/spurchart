@@ -3,9 +3,9 @@ Create spur charts for super-heterodyne mixing, analog-to-digital conversion, an
 
 ## Examples
 
-[Mixer Spurcharts](docs/mixer.md).
+[Mixer Spurcharts](docs/mixer/index.md).
 
-[Converter Spurcharts](docs/converter.md).
+[Converter Spurcharts](docs/converter/index.md).
 
 ## Contribution
 
