@@ -5,11 +5,11 @@ description = "Spur charts for super-heterodyne mixers, DACs, and ADCs"
 authors = ["Justin Magers <magers@ieee.org>"]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
+python = ">=3.9,<=3.14"
 pandas = "^2.1.2"
 scipy = "^1.8.0"
 matplotlib = "^3.5.2"
-scikit-rf = "^0.31.0"
+scikit-rf = "^1.8.0"
 colorcet = "^3.0.1"
 bokeh = "^3.1.0"
 
