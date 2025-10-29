@@ -267,7 +267,8 @@ class Conversion:
         self._compute_aliased_inputs()
 
         if self.deduplicate:
-            self._deduplicate_by_lowest_order()
+            # self._deduplicate_by_lowest_order()
+            self._deduplicate_by_lowest_n()
 
         self._fix_vertical_spurs()
 
@@ -471,6 +472,27 @@ class Conversion:
 
         return table
 
+    def _deduplicate_by_lowest_n(self):
+        """Remove duplicate spurs.
+
+        for spurs which share the same input frequencies (fin1, fin2) and aliased output frequencies
+        (ftune1_nz1, ftune2_nz1), remove the duplicates.
+
+        The dataframe is first sorted in ascending order by 'n'.
+        Then, the lowest order is kept for each duplicate.
+
+        """
+        cols = ["ftune1_nz1", "ftune2_nz1", "fin1", "fin2"]
+
+        precision = 10  # round to precision avoids floating point errors
+
+        spurs = self.spurs
+        spurs = spurs.sort_values(by="n")
+
+        duplicates = spurs.round(precision).duplicated(subset=cols, keep="first")
+        self.spurs = spurs[~duplicates]
+        self.duplicate_spurs = spurs[duplicates]
+
     def _deduplicate_by_lowest_order(self):
         """Remove duplicate spurs.
 
@@ -551,7 +573,7 @@ class Conversion:
                 ("n, k", "@n, @k"),
                 ("NZ", "@nz"),
                 ("Input", f"$y [{units}]"),
-                ("Ftune", f"$x [{units}]"),
+                ("Tune (NCO)", f"$x [{units}]"),
             ],
         )
 
@@ -559,15 +581,20 @@ class Conversion:
 
         title_str = (
             f"Nyquist Zone {self.input_zone} Input Sweep [{self.fin[0]},{self.fin[1]}] {units} "
-            + f"for fs = {self.fs} {units[0]}Sa/s"
+            + f"for Sample-rate of {self.fs} {units[0]}S/s"
         )
 
-        subtitle_str = f"n·fin + k·fs/{self.M} = ftune, |n| ≤ {n}, |k| ≤ {k}"
+        # subtitle_str = f"n·fin + k·fs/{self.M} = ftune, |n| ≤ {n}, |k| ≤ {k}"
+        subtitle_str = rf"$$n·f_{{IN}} + k·fs/{self.M} = f_{{TUNE}}, |n| ≤ {n}, |k| ≤ {k}$$"
 
-        graph.add_layout(Title(text=subtitle_str, text_font_size="10pt"), "above")
         graph.add_layout(Title(text=title_str, text_font_size="12pt"), "above")
-        graph.yaxis.axis_label = f"Input Frequency [{units}]"
-        graph.xaxis.axis_label = f"Tune Frequency [{units}]"
+        graph.add_layout(Title(text=subtitle_str, text_font_size="10pt", text_font_style = "normal"), "above")
+        
+        # graph.yaxis.axis_label = f"Input Frequency [{units}]"
+        graph.yaxis.axis_label = rf"Input Frequency $$f_{{IN}}$$ [{units}]"
+
+        # graph.xaxis.axis_label = f"Tune Frequency [{units}]"
+        graph.xaxis.axis_label = rf"NCO Tune Frequency $$f_{{TUNE}}$$ [{units}]"        
         graph.add_tools(hover_tool_ml)
         graph.x_range = Range1d(*xrange, bounds="auto")
         graph.y_range = Range1d(*yrange, bounds="auto")
