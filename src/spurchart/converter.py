@@ -414,7 +414,7 @@ class Conversion:
         return spurs.loc[list(index)].sort_values("order")
 
     def spurs_at_fin(self, fin):
-        """Compute spurs at a given frequency fin."""
+        """Compute spurs at a given frequency."""
         # intersecting lines:
         # https://stackoverflow.com/questions/48352036/how-can-i-measure-the-overlap-between-a-line-and-a-rectangle
         # https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection#Given_two_points_on_each_line
@@ -439,7 +439,7 @@ class Conversion:
         cols = "n k nz order".split()
         spurs_at_coords = spurs[cols].loc[intersection_coords.index]
         table = pd.concat((intersection_coords, spurs_at_coords), axis=1)
-        table = table.drop(columns=["fin"]).sort_values("ftune").set_index("ftune")
+        table = table.drop(columns=["fin"]).set_index("ftune").sort_index()
 
         return table
 
@@ -469,7 +469,7 @@ class Conversion:
         cols = "n k nz order".split()
         spurs_at_coords = spurs[cols].loc[intersection_coords.index]
         table = pd.concat((intersection_coords, spurs_at_coords), axis=1)
-        table = table.drop(columns=["ftune"]).sort_values("fin").set_index("fin")
+        table = table.drop(columns=["ftune"]).set_index("fin").sort_index()
 
         return table
 
@@ -530,8 +530,6 @@ class Conversion:
 
         colormap = self.__get_colormap()
 
-        # ------------------------------------------------------------------------------------------
-
         data = {
             "y": spurs[["ftune1_nz1", "ftune2_nz1"]].values.tolist(),
             "x": spurs[["fin1", "fin2"]].values.tolist(),
@@ -574,7 +572,6 @@ class Conversion:
             muted_alpha=0.2,
         )
 
-        # probably not correct
         hover_tool_ml = HoverTool(line_policy="interp", renderers=[ml], tooltips=tooltips)
 
         n, k = self.order
@@ -606,15 +603,17 @@ class Conversion:
         graph.xaxis.axis_label = rf"Input Frequency $$f_{{IN}}$$ [{units}]"
         graph.yaxis.axis_label = rf"Tune Frequency $$f_{{TUNE}}$$ [{units}]"
 
-        xrange = self.fs / 2 * np.array([self.input_zone - 1, self.input_zone])
-        yrange = self.fs / 2 * np.array([self.tune_zone - 1, self.tune_zone])
+        fn = self.fs / 2
+
+        xrange = fn * np.array([self.input_zone - 1, self.input_zone])
+        yrange = fn * np.array([self.tune_zone - 1, self.tune_zone])
 
         if axes_swapped:
             graph.xaxis.axis_label = rf"Tune Frequency $$f_{{TUNE}}$$ [{units}]"
             graph.yaxis.axis_label = rf"Input Frequency $$f_{{IN}}$$ [{units}]"
 
-            xrange = self.fs / 2 * np.array([self.tune_zone - 1, self.tune_zone])
-            yrange = self.fs / 2 * np.array([self.input_zone - 1, self.input_zone])
+            xrange = fn * np.array([self.tune_zone - 1, self.tune_zone])
+            yrange = fn * np.array([self.input_zone - 1, self.input_zone])
 
         graph.x_range = Range1d(*xrange, bounds="auto")
         graph.y_range = Range1d(*yrange, bounds="auto")
@@ -636,8 +635,6 @@ class Conversion:
                 graph.rect(y, x, height, width, color=band.color, alpha=0.5)
             else:
                 graph.rect(x, y, width, height, color=band.color, alpha=0.5)
-
-        # ------------------------------------------------------------------------------------------
 
         # graph.legend.click_policy = "mute"
         graph.legend.visible = legend
