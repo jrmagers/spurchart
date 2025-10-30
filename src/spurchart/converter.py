@@ -267,8 +267,7 @@ class Conversion:
         self._compute_aliased_inputs()
 
         if self.deduplicate:
-            # self._deduplicate_by_lowest_order()
-            self._deduplicate_by_lowest_n()
+            self._deduplicate()
 
         self._fix_vertical_spurs()
 
@@ -472,13 +471,13 @@ class Conversion:
 
         return table
 
-    def _deduplicate_by_lowest_n(self):
+    def _deduplicate(self):
         """Remove duplicate spurs.
 
         for spurs which share the same input frequencies (fin1, fin2) and aliased output frequencies
         (ftune1_nz1, ftune2_nz1), remove the duplicates.
 
-        The dataframe is first sorted in ascending order by 'n'.
+        The dataframe is first sorted in ascending order by |n|, then nz, then |k|.
         Then, the lowest order is kept for each duplicate.
 
         """
@@ -487,32 +486,15 @@ class Conversion:
         precision = 10  # round to precision avoids floating point errors
 
         spurs = self.spurs
-        spurs = spurs.sort_values(by="n")
+        spurs['|n|'] = abs(spurs.n)
+        spurs['|k|'] = abs(spurs.k)
+        spurs = spurs.sort_values(by=["|n|","nz","|k|"])
+        spurs = spurs.drop(columns=['|n|',"|k|"])
 
         duplicates = spurs.round(precision).duplicated(subset=cols, keep="first")
         self.spurs = spurs[~duplicates]
         self.duplicate_spurs = spurs[duplicates]
 
-    def _deduplicate_by_lowest_order(self):
-        """Remove duplicate spurs.
-
-        for spurs which share the same input frequencies (fin1, fin2) and aliased output frequencies
-        (ftune1_nz1, ftune2_nz1), remove the duplicates.
-
-        The dataframe is first sorted in ascending order by 'order', where order = |n|+|k|+|M|.
-        Then, the lowest order is kept for each duplicate.
-
-        """
-        cols = ["ftune1_nz1", "ftune2_nz1", "fin1", "fin2"]
-
-        precision = 10  # round to precision avoids floating point errors
-
-        spurs = self.spurs
-        spurs = spurs.sort_values(by="order")
-
-        duplicates = spurs.round(precision).duplicated(subset=cols, keep="first")
-        self.spurs = spurs[~duplicates]
-        self.duplicate_spurs = spurs[duplicates]
 
     def __get_colormap(self):
         numlines = self.spurs.shape[0]
@@ -539,7 +521,8 @@ class Conversion:
             output_notebook()  # make in-line Bokeh plots in Jupyter Notebook / VS Code
 
         # sort by order
-        spurs = self.spurs.sort_values(by="order", ascending=False)
+        # spurs = self.spurs.sort_values(by="order", ascending=False)
+        spurs = self.spurs
 
         colormap = self.__get_colormap()
 
