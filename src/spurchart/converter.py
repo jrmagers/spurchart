@@ -232,16 +232,31 @@ class Band:
 class Conversion:
     """Create a spur chart for a A/D or D/A Converter.
 
-    Sweep Nyquist Zone 'input_zone' and plot the 'input_zone' vs 'tune_zone'
+    Sweep the carrier frequency across the a Nyquist Zone and tune the converter across a Nyquist
+    Zone. Generate all possible spurious frequencies due to offset mismatch, gain and phase mismatch
+    of interleaved converters, and nonlinear and mismatch error of interleaved converters.
 
-    fs : sample rate
+    Parameters
+    ----------
+    fs : float
+        sample rate
+    input_zone : int
+        sweep the carrier across this zone (default is 1)
+    tune_zone : int
+        tune the converter frequency across this zone (default is 1)
+    order : tuple
+        tuple of max order of spurs in the form of (n,k) for ftune = n*fc + k/M*fs. Default is (5,3).
+    M : int
+        number of interleaved converters. Default is 1.
+    units : str
+        frequency units. Default is 'GHz'.
+    deduplicate : bool
+        remove spurs that are coincident in frequency but may have different values of (n,k).
+        Default is True.
 
-    input_zone : sweep the input over input_zone
-    tune_zone: plot output frequencies aliased to 'tune_zone'. Default is 1.
-
-    order: tuple of max order of spurs (n,k)  for ftune = n*fc + k/M*fs
-
-    units: annotate these units
+    Reference
+    ---------
+    Lin, X. "Spurs Analysis in the RF Sampling ADC." *Texas Instruments* (2018).
 
     """
 
@@ -249,7 +264,7 @@ class Conversion:
     input_zone: int = 1
     tune_zone: int = 1
     order: Tuple[int, int] = (5, 3)
-    M: int = 2
+    M: int = 1
     units: str = "GHz"
     bands: List[Band] = field(default_factory=list)
     deduplicate: bool = True
@@ -510,7 +525,7 @@ class Conversion:
 
         return colormap[:numlines]
 
-    def plot(self, filename=None, legend=False, hide=False, axes_swapped=False):
+    def plot(self, filename=None, legend=False, hide=False, swap_axes=False):
         """Plot spurchart using bokeh."""
         # from bokeh.io import curdoc, export_png
         from bokeh.models import ColumnDataSource, HoverTool, Range1d, Title
@@ -546,7 +561,7 @@ class Conversion:
             ("Tune (NCO)", f"$y {units}"),
         ]
 
-        if axes_swapped:
+        if swap_axes:
             data["x"] = spurs[["ftune1_nz1", "ftune2_nz1"]].values.tolist()
             data["y"] = spurs[["fc1", "fc2"]].values.tolist()
 
@@ -575,7 +590,8 @@ class Conversion:
         n, k = self.order
 
         title_str = (
-            f"Carrier Sweep across Nyquist Zone {self.input_zone}: [{self.fc[0]},{self.fc[1]}] {units} "
+            f"Carrier Sweep Across Nyquist Zone {self.input_zone}: "
+            + f"[{self.fc[0]},{self.fc[1]}] {units} "
             + f"for Sample-rate of {self.fs} {units[0]}S/s"
         )
 
@@ -606,7 +622,7 @@ class Conversion:
         xrange = fn * np.array([self.input_zone - 1, self.input_zone])
         yrange = fn * np.array([self.tune_zone - 1, self.tune_zone])
 
-        if axes_swapped:
+        if swap_axes:
             graph.xaxis.axis_label = rf"Tune Frequency $$f_{{TUNE}}$$ [{units}]"
             graph.yaxis.axis_label = rf"Carrier Frequency $$f_C$$ [{units}]"
 
@@ -629,7 +645,7 @@ class Conversion:
             width = abs(ftune2_nz1 - ftune1_nz1)
             height = abs(band.fb - band.fa)
 
-            if axes_swapped:
+            if swap_axes:
                 graph.rect(y, x, height, width, color=band.color, alpha=0.5)
             else:
                 graph.rect(x, y, width, height, color=band.color, alpha=0.5)
