@@ -316,8 +316,6 @@ class Conversion:
             lambda row: ", ".join(row.values.astype(str)), axis=1
         )
 
-        spurs_by_zone["order"] = spurs_by_zone.n.abs() + spurs_by_zone.k.abs()
-
         # eliminate negative frequencies
         positive_frequency_spurs = (spurs_by_zone.ftune1 >= 0) & (spurs_by_zone.ftune2 >= 0)
         spurs_by_zone = spurs_by_zone[positive_frequency_spurs]
@@ -411,7 +409,7 @@ class Conversion:
             intersections[line_segment] = df
             index = index | set(df.index.values)
 
-        return spurs.loc[list(index)].sort_values("order")
+        return spurs.loc[list(index)]
 
     def spurs_at_fin(self, fin):
         """Compute spurs at a given frequency."""
@@ -436,7 +434,7 @@ class Conversion:
         cond2 = intersection_coords.ftune <= self.tune_zone * fn
         intersection_coords = intersection_coords[cond1 & cond2]
 
-        cols = "n k nz order".split()
+        cols = "n k nz".split()
         spurs_at_coords = spurs[cols].loc[intersection_coords.index]
         table = pd.concat((intersection_coords, spurs_at_coords), axis=1)
         table = table.drop(columns=["fin"]).set_index("ftune").sort_index()
@@ -466,7 +464,7 @@ class Conversion:
         cond2 = intersection_coords.fin <= self.input_zone * fn
         intersection_coords = intersection_coords[cond1 & cond2]
 
-        cols = "n k nz order".split()
+        cols = "n k nz".split()
         spurs_at_coords = spurs[cols].loc[intersection_coords.index]
         table = pd.concat((intersection_coords, spurs_at_coords), axis=1)
         table = table.drop(columns=["ftune"]).set_index("fin").sort_index()
