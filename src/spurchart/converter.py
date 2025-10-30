@@ -512,7 +512,7 @@ class Conversion:
 
         return colormap[:numlines]
 
-    def plot(self, filename=None, legend=False, hide=False):
+    def plot(self, filename=None, legend=False, hide=False, axes_swapped=False):
         """Plot spurchart using bokeh."""
         # from bokeh.io import curdoc, export_png
         from bokeh.models import ColumnDataSource, HoverTool, Range1d, Title
@@ -530,9 +530,11 @@ class Conversion:
 
         colormap = self.__get_colormap()
 
+        # ------------------------------------------------------------------------------------------
+
         data = {
-            "x": spurs[["ftune1_nz1", "ftune2_nz1"]].values.tolist(),
-            "y": spurs[["fin1", "fin2"]].values.tolist(),
+            "y": spurs[["ftune1_nz1", "ftune2_nz1"]].values.tolist(),
+            "x": spurs[["fin1", "fin2"]].values.tolist(),
             "n": spurs.n.values,
             "k": spurs.k.values,
             "M": spurs.M.values,
@@ -540,6 +542,24 @@ class Conversion:
             "labels": spurs.label,
             "nz": spurs.nz,
         }
+
+        tooltips = [
+            ("n, k", "@n, @k"),
+            ("NZ", "@nz"),
+            ("Input", f"$x {units}"),
+            ("Tune (NCO)", f"$y {units}"),
+        ]
+
+        if axes_swapped:
+            data["x"] = spurs[["ftune1_nz1", "ftune2_nz1"]].values.tolist()
+            data["y"] = spurs[["fin1", "fin2"]].values.tolist()
+
+            tooltips = [
+                ("n, k", "@n, @k"),
+                ("NZ", "@nz"),
+                ("Input", f"$y {units}"),
+                ("Tune (NCO)", f"$x {units}"),
+            ]
 
         source = ColumnDataSource(data)
 
@@ -554,16 +574,8 @@ class Conversion:
             muted_alpha=0.2,
         )
 
-        hover_tool_ml = HoverTool(
-            line_policy="interp",
-            renderers=[ml],
-            tooltips=[
-                ("n, k", "@n, @k"),
-                ("NZ", "@nz"),
-                ("Input", f"$y [{units}]"),
-                ("Tune (NCO)", f"$x [{units}]"),
-            ],
-        )
+        # probably not correct
+        hover_tool_ml = HoverTool(line_policy="interp", renderers=[ml], tooltips=tooltips)
 
         n, k = self.order
 
@@ -572,7 +584,7 @@ class Conversion:
             + f"for Sample-rate of {self.fs} {units[0]}S/s"
         )
 
-        subtitle_str = rf"$$n·f_{{IN}} + k·fs/{self.M} = f_{{TUNE}}, |n| ≤ {n}, |k| ≤ {k}$$"
+        subtitle_str = rf"$$n·f_{{IN}} + k·f_S/{self.M} = f_{{TUNE}}, |n| ≤ {n}, |k| ≤ {k}$$"
 
         graph.add_layout(
             Title(
@@ -587,20 +599,30 @@ class Conversion:
         graph.add_tools(hover_tool_ml)
         graph.toolbar.logo = None
 
-        graph.yaxis.axis_label = rf"Input Frequency $$f_{{IN}}$$ [{units}]"
-        graph.xaxis.axis_label = rf"Tune Frequency $$f_{{TUNE}}$$ [{units}]"
         graph.axis.axis_label_text_font_style = "normal"  # non-italic axis labels
+        graph.xaxis.major_label_text_font_size = "10pt"
+        graph.yaxis.major_label_text_font_size = "10pt"
 
-        xrange = self.fs / 2 * np.array([self.tune_zone - 1, self.tune_zone])
-        yrange = self.fs / 2 * np.array([self.input_zone - 1, self.input_zone])
+        graph.xaxis.axis_label = rf"Input Frequency $$f_{{IN}}$$ [{units}]"
+        graph.yaxis.axis_label = rf"Tune Frequency $$f_{{TUNE}}$$ [{units}]"
+
+        xrange = self.fs / 2 * np.array([self.input_zone - 1, self.input_zone])
+        yrange = self.fs / 2 * np.array([self.tune_zone - 1, self.tune_zone])
+
+        if axes_swapped:
+            graph.xaxis.axis_label = rf"Tune Frequency $$f_{{TUNE}}$$ [{units}]"
+            graph.yaxis.axis_label = rf"Input Frequency $$f_{{IN}}$$ [{units}]"
+
+            xrange = self.fs / 2 * np.array([self.tune_zone - 1, self.tune_zone])
+            yrange = self.fs / 2 * np.array([self.input_zone - 1, self.input_zone])
 
         graph.x_range = Range1d(*xrange, bounds="auto")
         graph.y_range = Range1d(*yrange, bounds="auto")
 
-        xstep = 1
+        xstep = (xrange[1] - xrange[0]) / 10
         graph.xaxis.ticker = np.arange(xrange[0], xrange[1] + xstep, xstep)
 
-        ystep = 1
+        ystep = (yrange[1] - yrange[0]) / 10
         graph.yaxis.ticker = np.arange(yrange[0], yrange[1] + ystep, ystep)
 
         for band in self.bands:
@@ -609,7 +631,13 @@ class Conversion:
             y = (band.fa + band.fb) / 2
             width = abs(ftune2_nz1 - ftune1_nz1)
             height = abs(band.fb - band.fa)
-            graph.rect(x, y, width, height, color=band.color, alpha=0.5)
+
+            if axes_swapped:
+                graph.rect(y, x, height, width, color=band.color, alpha=0.5)
+            else:
+                graph.rect(x, y, width, height, color=band.color, alpha=0.5)
+
+        # ------------------------------------------------------------------------------------------
 
         # graph.legend.click_policy = "mute"
         graph.legend.visible = legend
