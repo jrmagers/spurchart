@@ -266,6 +266,8 @@ class Conversion:
         self._compute_aliased_spurs()
         self._compute_aliased_inputs()
 
+        self._sort_spurs()
+
         if self.deduplicate:
             self._deduplicate()
 
@@ -471,6 +473,17 @@ class Conversion:
 
         return table
 
+    def _sort_spurs(self):
+        """Sort the spurs."""
+
+        spurs = self.spurs
+        spurs['|n|'] = abs(spurs.n)
+        spurs['|k|'] = abs(spurs.k)
+        spurs = spurs.sort_values(by=["|n|","nz","|k|"])
+        self.spurs = spurs.drop(columns=['|n|',"|k|"])
+
+
+
     def _deduplicate(self):
         """Remove duplicate spurs.
 
@@ -486,10 +499,10 @@ class Conversion:
         precision = 10  # round to precision avoids floating point errors
 
         spurs = self.spurs
-        spurs['|n|'] = abs(spurs.n)
-        spurs['|k|'] = abs(spurs.k)
-        spurs = spurs.sort_values(by=["|n|","nz","|k|"])
-        spurs = spurs.drop(columns=['|n|',"|k|"])
+        # spurs['|n|'] = abs(spurs.n)
+        # spurs['|k|'] = abs(spurs.k)
+        # spurs = spurs.sort_values(by=["|n|","nz","|k|"])
+        # spurs = spurs.drop(columns=['|n|',"|k|"])
 
         duplicates = spurs.round(precision).duplicated(subset=cols, keep="first")
         self.spurs = spurs[~duplicates]
@@ -520,8 +533,6 @@ class Conversion:
 
             output_notebook()  # make in-line Bokeh plots in Jupyter Notebook / VS Code
 
-        # sort by order
-        # spurs = self.spurs.sort_values(by="order", ascending=False)
         spurs = self.spurs
 
         colormap = self.__get_colormap()
