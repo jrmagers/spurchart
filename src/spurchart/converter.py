@@ -477,12 +477,10 @@ class Conversion:
         """Sort the spurs."""
 
         spurs = self.spurs
-        spurs['|n|'] = abs(spurs.n)
-        spurs['|k|'] = abs(spurs.k)
-        spurs = spurs.sort_values(by=["|n|","nz","|k|"])
-        self.spurs = spurs.drop(columns=['|n|',"|k|"])
-
-
+        spurs["|n|"] = abs(spurs.n)
+        spurs["|k|"] = abs(spurs.k)
+        spurs = spurs.sort_values(by=["|n|", "nz", "|k|"])
+        self.spurs = spurs.drop(columns=["|n|", "|k|"])
 
     def _deduplicate(self):
         """Remove duplicate spurs.
@@ -499,15 +497,10 @@ class Conversion:
         precision = 10  # round to precision avoids floating point errors
 
         spurs = self.spurs
-        # spurs['|n|'] = abs(spurs.n)
-        # spurs['|k|'] = abs(spurs.k)
-        # spurs = spurs.sort_values(by=["|n|","nz","|k|"])
-        # spurs = spurs.drop(columns=['|n|',"|k|"])
 
         duplicates = spurs.round(precision).duplicated(subset=cols, keep="first")
         self.spurs = spurs[~duplicates]
         self.duplicate_spurs = spurs[duplicates]
-
 
     def __get_colormap(self):
         numlines = self.spurs.shape[0]
@@ -517,7 +510,7 @@ class Conversion:
         length_of_colormap = len(colormap)
         colormap = colormap * (int(numlines / length_of_colormap) + 1)
 
-        return colormap[:numlines]   
+        return colormap[:numlines]
 
     def plot(self, filename=None, legend=False, hide=False):
         """Plot spurchart using bokeh."""
@@ -561,9 +554,6 @@ class Conversion:
             muted_alpha=0.2,
         )
 
-        xrange = self.fs / 2 * np.array([self.tune_zone - 1, self.tune_zone])
-        yrange = self.fs / 2 * np.array([self.input_zone - 1, self.input_zone])
-
         hover_tool_ml = HoverTool(
             line_policy="interp",
             renderers=[ml],
@@ -582,29 +572,36 @@ class Conversion:
             + f"for Sample-rate of {self.fs} {units[0]}S/s"
         )
 
-        # subtitle_str = f"n·fin + k·fs/{self.M} = ftune, |n| ≤ {n}, |k| ≤ {k}"
         subtitle_str = rf"$$n·f_{{IN}} + k·fs/{self.M} = f_{{TUNE}}, |n| ≤ {n}, |k| ≤ {k}$$"
 
-        graph.add_layout(Title(text=subtitle_str, text_font_size="10pt", text_font_style = "normal"), "above")
+        graph.add_layout(
+            Title(
+                text=subtitle_str,
+                text_font_size="10pt",
+                text_font_style="normal",
+            ),
+            "above",
+        )
         graph.add_layout(Title(text=title_str, text_font_size="12pt"), "above")
-        
-        # graph.yaxis.axis_label = f"Input Frequency [{units}]"
-        graph.yaxis.axis_label = rf"Input Frequency $$f_{{IN}}$$ [{units}]"
 
-        # graph.xaxis.axis_label = f"Tune Frequency [{units}]"
-        graph.xaxis.axis_label = rf"NCO Tune Frequency $$f_{{TUNE}}$$ [{units}]"        
         graph.add_tools(hover_tool_ml)
+        graph.toolbar.logo = None
+
+        graph.yaxis.axis_label = rf"Input Frequency $$f_{{IN}}$$ [{units}]"
+        graph.xaxis.axis_label = rf"Tune Frequency $$f_{{TUNE}}$$ [{units}]"
+        graph.axis.axis_label_text_font_style = "normal"  # non-italic axis labels
+
+        xrange = self.fs / 2 * np.array([self.tune_zone - 1, self.tune_zone])
+        yrange = self.fs / 2 * np.array([self.input_zone - 1, self.input_zone])
+
         graph.x_range = Range1d(*xrange, bounds="auto")
         graph.y_range = Range1d(*yrange, bounds="auto")
-        graph.toolbar.logo = None
 
         xstep = 1
         graph.xaxis.ticker = np.arange(xrange[0], xrange[1] + xstep, xstep)
 
         ystep = 1
         graph.yaxis.ticker = np.arange(yrange[0], yrange[1] + ystep, ystep)
-
-        graph.axis.axis_label_text_font_style = "normal"  # non-italic axis labels
 
         for band in self.bands:
             ftune1_nz1, ftune2_nz1 = band.compute_alias(self.fs, self.input_zone, self.tune_zone)
