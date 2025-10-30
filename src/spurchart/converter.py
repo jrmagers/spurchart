@@ -424,7 +424,10 @@ class Conversion:
             intersections[line_segment] = df
             index = index | set(df.index.values)
 
-        return spurs.loc[list(index)]
+        # return spurs.loc[list(index)]
+        spurs = spurs.loc[list(index)]
+        spurs = spurs.drop(columns=["M", "label"])
+        return spurs
 
     def spurs_at_fc(self, fc):
         """Compute spurs at a given frequency."""
