@@ -514,6 +514,16 @@ class Conversion:
         self.spurs = spurs[~duplicates]
         self.duplicate_spurs = spurs[duplicates]
 
+    def __get_colormap(self):
+        numlines = self.spurs.shape[0]
+        colormap = getattr(colorcet, "glasbey")
+
+        # duplicate colormap to make sure there are enough entries
+        length_of_colormap = len(colormap)
+        colormap = colormap * (int(numlines / length_of_colormap) + 1)
+
+        return colormap[:numlines]   
+
     def plot(self, filename=None, legend=False, hide=False):
         """Plot spurchart using bokeh."""
         # from bokeh.io import curdoc, export_png
@@ -521,6 +531,7 @@ class Conversion:
         from bokeh.plotting import show
 
         graph = self.graph
+        units = self.units
 
         if is_notebook():
             from bokeh.plotting import output_notebook
@@ -530,14 +541,7 @@ class Conversion:
         # sort by order
         spurs = self.spurs.sort_values(by="order", ascending=False)
 
-        units = self.units
-
-        numlines = spurs.shape[0]
-        colormap = getattr(colorcet, "glasbey")
-
-        # duplicate colormap to make sure there are enough entries
-        length_of_colormap = len(colormap)
-        colormap = colormap * (int(numlines / length_of_colormap) + 1)
+        colormap = self.__get_colormap()
 
         data = {
             "x": spurs[["ftune1_nz1", "ftune2_nz1"]].values.tolist(),
@@ -545,7 +549,7 @@ class Conversion:
             "n": spurs.n.values,
             "k": spurs.k.values,
             "M": spurs.M.values,
-            "colors": colormap[:numlines],
+            "colors": colormap,
             "labels": spurs.label,
             "nz": spurs.nz,
         }
@@ -587,8 +591,8 @@ class Conversion:
         # subtitle_str = f"n·fin + k·fs/{self.M} = ftune, |n| ≤ {n}, |k| ≤ {k}"
         subtitle_str = rf"$$n·f_{{IN}} + k·fs/{self.M} = f_{{TUNE}}, |n| ≤ {n}, |k| ≤ {k}$$"
 
-        graph.add_layout(Title(text=title_str, text_font_size="12pt"), "above")
         graph.add_layout(Title(text=subtitle_str, text_font_size="10pt", text_font_style = "normal"), "above")
+        graph.add_layout(Title(text=title_str, text_font_size="12pt"), "above")
         
         # graph.yaxis.axis_label = f"Input Frequency [{units}]"
         graph.yaxis.axis_label = rf"Input Frequency $$f_{{IN}}$$ [{units}]"
