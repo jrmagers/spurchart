@@ -96,8 +96,8 @@ def converter_products(n: int, k: int, m: int):
 
     # k >= 0 results in Equation 3 and 4
 
-    # The reference appears to be incorrect by suggesting that k >= 0. Measurement of PXIe-5860 in
-    # loopback suggests that k < 0 is a valid spur.
+    # The reference appears to be incorrect by suggesting that k >= 0. Measurement suggests that
+    # k < 0 is a valid spur.
 
     # gain_phase_mismatch = it.product(range(-n, n + 1), range(0, k + 1), [m]) <-- needs k < 0
     gain_phase_mismatch = it.product(range(-n, n + 1), range(-k, k + 1), [m])
