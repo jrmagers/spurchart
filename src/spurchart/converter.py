@@ -239,7 +239,7 @@ class Conversion:
     input_zone : sweep the input over input_zone
     tune_zone: plot output frequencies aliased to 'tune_zone'. Default is 1.
 
-    order: tuple of max order of spurs (n,k)  for ftune = n*fin + k/M*fs
+    order: tuple of max order of spurs (n,k)  for ftune = n*fc + k/M*fs
 
     units: annotate these units
 
@@ -279,14 +279,14 @@ class Conversion:
 
     def _generate_spurs(self):
         fs = self.fs
-        fin = fs / 2 * np.array([self.input_zone - 1, self.input_zone])
-        self.fin = fin
+        fc = fs / 2 * np.array([self.input_zone - 1, self.input_zone])
+        self.fc = fc
 
         intermods = converter_products(*self.order, self.M)
         spurs = pd.DataFrame(intermods, columns=["n", "k", "M"])
 
-        spurs["ftune1"] = spurs.n * fin[0] + spurs.k / spurs.M * fs
-        spurs["ftune2"] = spurs.n * fin[1] + spurs.k / spurs.M * fs
+        spurs["ftune1"] = spurs.n * fc[0] + spurs.k / spurs.M * fs
+        spurs["ftune2"] = spurs.n * fc[1] + spurs.k / spurs.M * fs
 
         # split spurs into Nyquist zones
         spurs_by_nyquist_zone = []
@@ -329,8 +329,8 @@ class Conversion:
     def _compute_aliased_inputs(self):
         s = self.spurs
 
-        s["fin1"] = (s.ftune1 - s.k / s.M * self.fs) / s.n
-        s["fin2"] = (s.ftune2 - s.k / s.M * self.fs) / s.n
+        s["fc1"] = (s.ftune1 - s.k / s.M * self.fs) / s.n
+        s["fc2"] = (s.ftune2 - s.k / s.M * self.fs) / s.n
 
         self.spurs = s
 
@@ -362,8 +362,8 @@ class Conversion:
 
     def _fix_vertical_spurs(self):
         spurs = self.spurs
-        spurs.loc[spurs["fin1"].isna(), "fin1"] = (self.input_zone - 1) * self.fs / 2
-        spurs.loc[spurs["fin2"].isna(), "fin2"] = (self.input_zone) * self.fs / 2
+        spurs.loc[spurs["fc1"].isna(), "fc1"] = (self.input_zone - 1) * self.fs / 2
+        spurs.loc[spurs["fc2"].isna(), "fc2"] = (self.input_zone) * self.fs / 2
         self.spurs = spurs
 
     def harmonic_distortion(self):
@@ -396,8 +396,8 @@ class Conversion:
         spurs = self.spurs
         x3 = spurs.ftune1_nz1
         x4 = spurs.ftune2_nz1
-        y3 = spurs.fin1
-        y4 = spurs.fin2
+        y3 = spurs.fc1
+        y4 = spurs.fc2
 
         for line_segment in _points_to_segments(*rect_points):
             z = _line_intersection(*line_segment, (x3, y3), (x4, y4))
@@ -411,7 +411,7 @@ class Conversion:
 
         return spurs.loc[list(index)]
 
-    def spurs_at_fin(self, fin):
+    def spurs_at_fc(self, fc):
         """Compute spurs at a given frequency."""
         # intersecting lines:
         # https://stackoverflow.com/questions/48352036/how-can-i-measure-the-overlap-between-a-line-and-a-rectangle
@@ -422,13 +422,13 @@ class Conversion:
 
         x3 = spurs.ftune1_nz1
         x4 = spurs.ftune2_nz1
-        y3 = spurs.fin1
-        y4 = spurs.fin2
+        y3 = spurs.fc1
+        y4 = spurs.fc2
 
-        line_segment = ((0, fin), (fn / 2, fin))  # horizontal line
+        line_segment = ((0, fc), (fn / 2, fc))  # horizontal line
 
         coords = _line_intersection(*line_segment, (x3, y3), (x4, y4))
-        intersection_coords = pd.DataFrame(data=coords, index=["ftune", "fin"]).transpose()
+        intersection_coords = pd.DataFrame(data=coords, index=["ftune", "fc"]).transpose()
 
         cond1 = intersection_coords.ftune >= (self.tune_zone - 1) * fn
         cond2 = intersection_coords.ftune <= self.tune_zone * fn
@@ -437,7 +437,7 @@ class Conversion:
         cols = "n k nz".split()
         spurs_at_coords = spurs[cols].loc[intersection_coords.index]
         table = pd.concat((intersection_coords, spurs_at_coords), axis=1)
-        table = table.drop(columns=["fin"]).set_index("ftune").sort_index()
+        table = table.drop(columns=["fc"]).set_index("ftune").sort_index()
 
         return table
 
@@ -452,22 +452,22 @@ class Conversion:
 
         x3 = spurs.ftune1_nz1
         x4 = spurs.ftune2_nz1
-        y3 = spurs.fin1
-        y4 = spurs.fin2
+        y3 = spurs.fc1
+        y4 = spurs.fc2
 
         line_segment = ((ftune, 0), (ftune, fn / 2))  # vertical line
 
         coords = _line_intersection(*line_segment, (x3, y3), (x4, y4))
-        intersection_coords = pd.DataFrame(data=coords, index=["ftune", "fin"]).transpose()
+        intersection_coords = pd.DataFrame(data=coords, index=["ftune", "fc"]).transpose()
 
-        cond1 = intersection_coords.fin >= (self.input_zone - 1) * fn
-        cond2 = intersection_coords.fin <= self.input_zone * fn
+        cond1 = intersection_coords.fc >= (self.input_zone - 1) * fn
+        cond2 = intersection_coords.fc <= self.input_zone * fn
         intersection_coords = intersection_coords[cond1 & cond2]
 
         cols = "n k nz".split()
         spurs_at_coords = spurs[cols].loc[intersection_coords.index]
         table = pd.concat((intersection_coords, spurs_at_coords), axis=1)
-        table = table.drop(columns=["ftune"]).set_index("fin").sort_index()
+        table = table.drop(columns=["ftune"]).set_index("fc").sort_index()
 
         return table
 
@@ -483,14 +483,14 @@ class Conversion:
     def _deduplicate(self):
         """Remove duplicate spurs.
 
-        for spurs which share the same input frequencies (fin1, fin2) and aliased output frequencies
+        for spurs which share the same input frequencies (fc1, fc2) and aliased output frequencies
         (ftune1_nz1, ftune2_nz1), remove the duplicates.
 
         The dataframe is first sorted in ascending order by |n|, then nz, then |k|.
         Then, the lowest order is kept for each duplicate.
 
         """
-        cols = ["ftune1_nz1", "ftune2_nz1", "fin1", "fin2"]
+        cols = ["ftune1_nz1", "ftune2_nz1", "fc1", "fc2"]
 
         precision = 10  # round to precision avoids floating point errors
 
@@ -530,7 +530,7 @@ class Conversion:
 
         data = {
             "y": spurs[["ftune1_nz1", "ftune2_nz1"]].values.tolist(),
-            "x": spurs[["fin1", "fin2"]].values.tolist(),
+            "x": spurs[["fc1", "fc2"]].values.tolist(),
             "n": spurs.n.values,
             "k": spurs.k.values,
             "M": spurs.M.values,
@@ -548,7 +548,7 @@ class Conversion:
 
         if axes_swapped:
             data["x"] = spurs[["ftune1_nz1", "ftune2_nz1"]].values.tolist()
-            data["y"] = spurs[["fin1", "fin2"]].values.tolist()
+            data["y"] = spurs[["fc1", "fc2"]].values.tolist()
 
             tooltips = [
                 ("n, k", "@n, @k"),
@@ -575,11 +575,11 @@ class Conversion:
         n, k = self.order
 
         title_str = (
-            f"Nyquist Zone {self.input_zone} Input Sweep [{self.fin[0]},{self.fin[1]}] {units} "
+            f"Carrier Sweep across Nyquist Zone {self.input_zone}: [{self.fc[0]},{self.fc[1]}] {units} "
             + f"for Sample-rate of {self.fs} {units[0]}S/s"
         )
 
-        subtitle_str = rf"$$n·f_{{IN}} + k·f_S/{self.M} = f_{{TUNE}}, |n| ≤ {n}, |k| ≤ {k}$$"
+        subtitle_str = rf"$$n·f_C + k·f_S/{self.M} = f_{{TUNE}}, |n| ≤ {n}, |k| ≤ {k}$$"
 
         graph.add_layout(
             Title(
@@ -598,7 +598,7 @@ class Conversion:
         graph.xaxis.major_label_text_font_size = "10pt"
         graph.yaxis.major_label_text_font_size = "10pt"
 
-        graph.xaxis.axis_label = rf"Input Frequency $$f_{{IN}}$$ [{units}]"
+        graph.xaxis.axis_label = rf"Carrier Frequency $$f_C$$ [{units}]"
         graph.yaxis.axis_label = rf"Tune Frequency $$f_{{TUNE}}$$ [{units}]"
 
         fn = self.fs / 2
@@ -608,7 +608,7 @@ class Conversion:
 
         if axes_swapped:
             graph.xaxis.axis_label = rf"Tune Frequency $$f_{{TUNE}}$$ [{units}]"
-            graph.yaxis.axis_label = rf"Input Frequency $$f_{{IN}}$$ [{units}]"
+            graph.yaxis.axis_label = rf"Carrier Frequency $$f_C$$ [{units}]"
 
             xrange = fn * np.array([self.tune_zone - 1, self.tune_zone])
             yrange = fn * np.array([self.input_zone - 1, self.input_zone])
