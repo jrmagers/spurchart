@@ -96,8 +96,8 @@ def converter_products(n: int, k: int, m: int):
 
     # k >= 0 results in Equation 3 and 4
 
-    # The reference appears to be incorrect by suggesting that k >= 0. Measurement of PXIe-5860 in
-    # loopback suggests that k < 0 is a valid spur.
+    # The reference appears to be incorrect by suggesting that k >= 0. Measurement suggests that
+    # k < 0 is a valid spur.
 
     # gain_phase_mismatch = it.product(range(-n, n + 1), range(0, k + 1), [m]) <-- needs k < 0
     gain_phase_mismatch = it.product(range(-n, n + 1), range(-k, k + 1), [m])
@@ -232,16 +232,31 @@ class Band:
 class Conversion:
     """Create a spur chart for a A/D or D/A Converter.
 
-    Sweep Nyquist Zone 'input_zone' and plot the 'input_zone' vs 'tune_zone'
+    Sweep the carrier frequency across the a Nyquist Zone and tune the converter across a Nyquist
+    Zone. Generate all possible spurious frequencies due to offset mismatch, gain and phase mismatch
+    of interleaved converters, and nonlinear and mismatch error of interleaved converters.
 
-    fs : sample rate
+    Parameters
+    ----------
+    fs : float
+        sample rate
+    input_zone : int
+        sweep the carrier across this zone (default is 1)
+    tune_zone : int
+        tune the converter frequency across this zone (default is 1)
+    order : tuple
+        tuple of max order of spurs in the form of (n,k) for ftune = n*fc + k/M*fs. Default is (5,3).
+    M : int
+        number of interleaved converters. Default is 1.
+    units : str
+        frequency units. Default is 'GHz'.
+    deduplicate : bool
+        remove spurs that are coincident in frequency but may have different values of (n,k).
+        Default is True.
 
-    input_zone : sweep the input over input_zone
-    tune_zone: plot output frequencies aliased to 'tune_zone'. Default is 1.
-
-    order: tuple of max order of spurs (n,k)  for ftune = n*fin + k/M*fs
-
-    units: annotate these units
+    Reference
+    ---------
+    Lin, X. "Spurs Analysis in the RF Sampling ADC." *Texas Instruments* (2018).
 
     """
 
@@ -249,7 +264,7 @@ class Conversion:
     input_zone: int = 1
     tune_zone: int = 1
     order: Tuple[int, int] = (5, 3)
-    M: int = 2
+    M: int = 1
     units: str = "GHz"
     bands: List[Band] = field(default_factory=list)
     deduplicate: bool = True
@@ -266,9 +281,10 @@ class Conversion:
         self._compute_aliased_spurs()
         self._compute_aliased_inputs()
 
+        self._sort_spurs()
+
         if self.deduplicate:
-            # self._deduplicate_by_lowest_order()
-            self._deduplicate_by_lowest_n()
+            self._deduplicate()
 
         self._fix_vertical_spurs()
 
@@ -278,14 +294,14 @@ class Conversion:
 
     def _generate_spurs(self):
         fs = self.fs
-        fin = fs / 2 * np.array([self.input_zone - 1, self.input_zone])
-        self.fin = fin
+        fc = fs / 2 * np.array([self.input_zone - 1, self.input_zone])
+        self.fc = fc
 
         intermods = converter_products(*self.order, self.M)
         spurs = pd.DataFrame(intermods, columns=["n", "k", "M"])
 
-        spurs["ftune1"] = spurs.n * fin[0] + spurs.k / spurs.M * fs
-        spurs["ftune2"] = spurs.n * fin[1] + spurs.k / spurs.M * fs
+        spurs["ftune1"] = spurs.n * fc[0] + spurs.k / spurs.M * fs
+        spurs["ftune2"] = spurs.n * fc[1] + spurs.k / spurs.M * fs
 
         # split spurs into Nyquist zones
         spurs_by_nyquist_zone = []
@@ -315,8 +331,6 @@ class Conversion:
             lambda row: ", ".join(row.values.astype(str)), axis=1
         )
 
-        spurs_by_zone["order"] = spurs_by_zone.n.abs() + spurs_by_zone.k.abs()
-
         # eliminate negative frequencies
         positive_frequency_spurs = (spurs_by_zone.ftune1 >= 0) & (spurs_by_zone.ftune2 >= 0)
         spurs_by_zone = spurs_by_zone[positive_frequency_spurs]
@@ -330,8 +344,8 @@ class Conversion:
     def _compute_aliased_inputs(self):
         s = self.spurs
 
-        s["fin1"] = (s.ftune1 - s.k / s.M * self.fs) / s.n
-        s["fin2"] = (s.ftune2 - s.k / s.M * self.fs) / s.n
+        s["fc1"] = (s.ftune1 - s.k / s.M * self.fs) / s.n
+        s["fc2"] = (s.ftune2 - s.k / s.M * self.fs) / s.n
 
         self.spurs = s
 
@@ -363,8 +377,8 @@ class Conversion:
 
     def _fix_vertical_spurs(self):
         spurs = self.spurs
-        spurs.loc[spurs["fin1"].isna(), "fin1"] = (self.input_zone - 1) * self.fs / 2
-        spurs.loc[spurs["fin2"].isna(), "fin2"] = (self.input_zone) * self.fs / 2
+        spurs.loc[spurs["fc1"].isna(), "fc1"] = (self.input_zone - 1) * self.fs / 2
+        spurs.loc[spurs["fc2"].isna(), "fc2"] = (self.input_zone) * self.fs / 2
         self.spurs = spurs
 
     def harmonic_distortion(self):
@@ -397,8 +411,8 @@ class Conversion:
         spurs = self.spurs
         x3 = spurs.ftune1_nz1
         x4 = spurs.ftune2_nz1
-        y3 = spurs.fin1
-        y4 = spurs.fin2
+        y3 = spurs.fc1
+        y4 = spurs.fc2
 
         for line_segment in _points_to_segments(*rect_points):
             z = _line_intersection(*line_segment, (x3, y3), (x4, y4))
@@ -410,10 +424,13 @@ class Conversion:
             intersections[line_segment] = df
             index = index | set(df.index.values)
 
-        return spurs.loc[list(index)].sort_values("order")
+        # return spurs.loc[list(index)]
+        spurs = spurs.loc[list(index)]
+        spurs = spurs.drop(columns=["M", "label"])
+        return spurs
 
-    def spurs_at_fin(self, fin):
-        """Compute spurs at a given frequency fin."""
+    def spurs_at_fc(self, fc):
+        """Compute spurs at a given frequency."""
         # intersecting lines:
         # https://stackoverflow.com/questions/48352036/how-can-i-measure-the-overlap-between-a-line-and-a-rectangle
         # https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection#Given_two_points_on_each_line
@@ -423,22 +440,22 @@ class Conversion:
 
         x3 = spurs.ftune1_nz1
         x4 = spurs.ftune2_nz1
-        y3 = spurs.fin1
-        y4 = spurs.fin2
+        y3 = spurs.fc1
+        y4 = spurs.fc2
 
-        line_segment = ((0, fin), (fn / 2, fin))  # horizontal line
+        line_segment = ((0, fc), (fn / 2, fc))  # horizontal line
 
         coords = _line_intersection(*line_segment, (x3, y3), (x4, y4))
-        intersection_coords = pd.DataFrame(data=coords, index=["ftune", "fin"]).transpose()
+        intersection_coords = pd.DataFrame(data=coords, index=["ftune", "fc"]).transpose()
 
         cond1 = intersection_coords.ftune >= (self.tune_zone - 1) * fn
         cond2 = intersection_coords.ftune <= self.tune_zone * fn
         intersection_coords = intersection_coords[cond1 & cond2]
 
-        cols = "n k nz order".split()
+        cols = "n k nz".split()
         spurs_at_coords = spurs[cols].loc[intersection_coords.index]
         table = pd.concat((intersection_coords, spurs_at_coords), axis=1)
-        table = table.drop(columns=["fin"]).sort_values("ftune").set_index("ftune")
+        table = table.drop(columns=["fc"]).set_index("ftune").sort_index()
 
         return table
 
@@ -453,102 +470,114 @@ class Conversion:
 
         x3 = spurs.ftune1_nz1
         x4 = spurs.ftune2_nz1
-        y3 = spurs.fin1
-        y4 = spurs.fin2
+        y3 = spurs.fc1
+        y4 = spurs.fc2
 
         line_segment = ((ftune, 0), (ftune, fn / 2))  # vertical line
 
         coords = _line_intersection(*line_segment, (x3, y3), (x4, y4))
-        intersection_coords = pd.DataFrame(data=coords, index=["ftune", "fin"]).transpose()
+        intersection_coords = pd.DataFrame(data=coords, index=["ftune", "fc"]).transpose()
 
-        cond1 = intersection_coords.fin >= (self.input_zone - 1) * fn
-        cond2 = intersection_coords.fin <= self.input_zone * fn
+        cond1 = intersection_coords.fc >= (self.input_zone - 1) * fn
+        cond2 = intersection_coords.fc <= self.input_zone * fn
         intersection_coords = intersection_coords[cond1 & cond2]
 
-        cols = "n k nz order".split()
+        cols = "n k nz".split()
         spurs_at_coords = spurs[cols].loc[intersection_coords.index]
         table = pd.concat((intersection_coords, spurs_at_coords), axis=1)
-        table = table.drop(columns=["ftune"]).sort_values("fin").set_index("fin")
+        table = table.drop(columns=["ftune"]).set_index("fc").sort_index()
 
         return table
 
-    def _deduplicate_by_lowest_n(self):
+    def _sort_spurs(self):
+        """Sort the spurs."""
+
+        spurs = self.spurs
+        spurs["|n|"] = abs(spurs.n)
+        spurs["|k|"] = abs(spurs.k)
+        spurs = spurs.sort_values(by=["|n|", "nz", "|k|"])
+        self.spurs = spurs.drop(columns=["|n|", "|k|"])
+
+    def _deduplicate(self):
         """Remove duplicate spurs.
 
-        for spurs which share the same input frequencies (fin1, fin2) and aliased output frequencies
+        for spurs which share the same input frequencies (fc1, fc2) and aliased output frequencies
         (ftune1_nz1, ftune2_nz1), remove the duplicates.
 
-        The dataframe is first sorted in ascending order by 'n'.
+        The dataframe is first sorted in ascending order by |n|, then nz, then |k|.
         Then, the lowest order is kept for each duplicate.
 
         """
-        cols = ["ftune1_nz1", "ftune2_nz1", "fin1", "fin2"]
+        cols = ["ftune1_nz1", "ftune2_nz1", "fc1", "fc2"]
 
         precision = 10  # round to precision avoids floating point errors
 
         spurs = self.spurs
-        spurs = spurs.sort_values(by="n")
 
         duplicates = spurs.round(precision).duplicated(subset=cols, keep="first")
         self.spurs = spurs[~duplicates]
         self.duplicate_spurs = spurs[duplicates]
 
-    def _deduplicate_by_lowest_order(self):
-        """Remove duplicate spurs.
-
-        for spurs which share the same input frequencies (fin1, fin2) and aliased output frequencies
-        (ftune1_nz1, ftune2_nz1), remove the duplicates.
-
-        The dataframe is first sorted in ascending order by 'order', where order = |n|+|k|+|M|.
-        Then, the lowest order is kept for each duplicate.
-
-        """
-        cols = ["ftune1_nz1", "ftune2_nz1", "fin1", "fin2"]
-
-        precision = 10  # round to precision avoids floating point errors
-
-        spurs = self.spurs
-        spurs = spurs.sort_values(by="order")
-
-        duplicates = spurs.round(precision).duplicated(subset=cols, keep="first")
-        self.spurs = spurs[~duplicates]
-        self.duplicate_spurs = spurs[duplicates]
-
-    def plot(self, filename=None, legend=False, hide=False):
-        """Plot spurchart using bokeh."""
-        # from bokeh.io import curdoc, export_png
-        from bokeh.models import ColumnDataSource, HoverTool, Range1d, Title
-        from bokeh.plotting import show
-
-        graph = self.graph
-
-        if is_notebook():
-            from bokeh.plotting import output_notebook
-
-            output_notebook()  # make in-line Bokeh plots in Jupyter Notebook / VS Code
-
-        # sort by order
-        spurs = self.spurs.sort_values(by="order", ascending=False)
-
-        units = self.units
-
-        numlines = spurs.shape[0]
+    def __get_colormap(self):
+        numlines = self.spurs.shape[0]
         colormap = getattr(colorcet, "glasbey")
 
         # duplicate colormap to make sure there are enough entries
         length_of_colormap = len(colormap)
         colormap = colormap * (int(numlines / length_of_colormap) + 1)
 
+        return colormap[:numlines]
+
+    def plot(self, filename=None, legend=False, hide=False, swap_axes=False):
+        """Plot spurchart using bokeh."""
+        # from bokeh.io import curdoc, export_png
+        from bokeh.models import ColumnDataSource, HoverTool, Range1d, Title
+        from bokeh.plotting import show
+
+        # number of axes tick locations
+        XDIVISIONS = 20
+        YDIVISIONS = 20
+
+        graph = self.graph
+        units = self.units
+
+        if is_notebook():
+            from bokeh.plotting import output_notebook
+
+            output_notebook()  # make in-line Bokeh plots in Jupyter Notebook / VS Code
+
+        spurs = self.spurs
+
+        colormap = self.__get_colormap()
+
         data = {
-            "x": spurs[["ftune1_nz1", "ftune2_nz1"]].values.tolist(),
-            "y": spurs[["fin1", "fin2"]].values.tolist(),
+            "y": spurs[["ftune1_nz1", "ftune2_nz1"]].values.tolist(),
+            "x": spurs[["fc1", "fc2"]].values.tolist(),
             "n": spurs.n.values,
             "k": spurs.k.values,
             "M": spurs.M.values,
-            "colors": colormap[:numlines],
+            "colors": colormap,
             "labels": spurs.label,
             "nz": spurs.nz,
         }
+
+        tooltips = [
+            ("n, k", "@n, @k"),
+            ("NZ", "@nz"),
+            ("Input", f"$x {units}"),
+            ("Tune (NCO)", f"$y {units}"),
+        ]
+
+        if swap_axes:
+            data["x"] = spurs[["ftune1_nz1", "ftune2_nz1"]].values.tolist()
+            data["y"] = spurs[["fc1", "fc2"]].values.tolist()
+
+            tooltips = [
+                ("n, k", "@n, @k"),
+                ("NZ", "@nz"),
+                ("Input", f"$y {units}"),
+                ("Tune (NCO)", f"$x {units}"),
+            ]
 
         source = ColumnDataSource(data)
 
@@ -563,50 +592,58 @@ class Conversion:
             muted_alpha=0.2,
         )
 
-        xrange = self.fs / 2 * np.array([self.tune_zone - 1, self.tune_zone])
-        yrange = self.fs / 2 * np.array([self.input_zone - 1, self.input_zone])
-
-        hover_tool_ml = HoverTool(
-            line_policy="interp",
-            renderers=[ml],
-            tooltips=[
-                ("n, k", "@n, @k"),
-                ("NZ", "@nz"),
-                ("Input", f"$y [{units}]"),
-                ("Tune (NCO)", f"$x [{units}]"),
-            ],
-        )
+        hover_tool_ml = HoverTool(line_policy="interp", renderers=[ml], tooltips=tooltips)
 
         n, k = self.order
 
         title_str = (
-            f"Nyquist Zone {self.input_zone} Input Sweep [{self.fin[0]},{self.fin[1]}] {units} "
+            f"Carrier Sweep Across Nyquist Zone {self.input_zone}: "
+            + f"[{self.fc[0]},{self.fc[1]}] {units} "
             + f"for Sample-rate of {self.fs} {units[0]}S/s"
         )
 
-        # subtitle_str = f"n·fin + k·fs/{self.M} = ftune, |n| ≤ {n}, |k| ≤ {k}"
-        subtitle_str = rf"$$n·f_{{IN}} + k·fs/{self.M} = f_{{TUNE}}, |n| ≤ {n}, |k| ≤ {k}$$"
+        subtitle_str = rf"$$n·f_C + k·f_S/{self.M} = f_{{TUNE}}, |n| ≤ {n}, |k| ≤ {k}$$"
 
+        graph.add_layout(
+            Title(
+                text=subtitle_str,
+                text_font_size="10pt",
+                text_font_style="normal",
+            ),
+            "above",
+        )
         graph.add_layout(Title(text=title_str, text_font_size="12pt"), "above")
-        graph.add_layout(Title(text=subtitle_str, text_font_size="10pt", text_font_style = "normal"), "above")
-        
-        # graph.yaxis.axis_label = f"Input Frequency [{units}]"
-        graph.yaxis.axis_label = rf"Input Frequency $$f_{{IN}}$$ [{units}]"
 
-        # graph.xaxis.axis_label = f"Tune Frequency [{units}]"
-        graph.xaxis.axis_label = rf"NCO Tune Frequency $$f_{{TUNE}}$$ [{units}]"        
         graph.add_tools(hover_tool_ml)
-        graph.x_range = Range1d(*xrange, bounds="auto")
-        graph.y_range = Range1d(*yrange, bounds="auto")
         graph.toolbar.logo = None
 
-        xstep = 1
+        graph.axis.axis_label_text_font_style = "normal"  # non-italic axis labels
+        graph.xaxis.major_label_text_font_size = "10pt"
+        graph.yaxis.major_label_text_font_size = "10pt"
+
+        graph.xaxis.axis_label = rf"Carrier Frequency $$f_C$$ [{units}]"
+        graph.yaxis.axis_label = rf"Tune Frequency $$f_{{TUNE}}$$ [{units}]"
+
+        fn = self.fs / 2
+
+        xrange = fn * np.array([self.input_zone - 1, self.input_zone])
+        yrange = fn * np.array([self.tune_zone - 1, self.tune_zone])
+
+        if swap_axes:
+            graph.xaxis.axis_label = rf"Tune Frequency $$f_{{TUNE}}$$ [{units}]"
+            graph.yaxis.axis_label = rf"Carrier Frequency $$f_C$$ [{units}]"
+
+            xrange = fn * np.array([self.tune_zone - 1, self.tune_zone])
+            yrange = fn * np.array([self.input_zone - 1, self.input_zone])
+
+        graph.x_range = Range1d(*xrange, bounds="auto")
+        graph.y_range = Range1d(*yrange, bounds="auto")
+
+        xstep = (xrange[1] - xrange[0]) / XDIVISIONS
         graph.xaxis.ticker = np.arange(xrange[0], xrange[1] + xstep, xstep)
 
-        ystep = 1
+        ystep = (yrange[1] - yrange[0]) / YDIVISIONS
         graph.yaxis.ticker = np.arange(yrange[0], yrange[1] + ystep, ystep)
-
-        graph.axis.axis_label_text_font_style = "normal"  # non-italic axis labels
 
         for band in self.bands:
             ftune1_nz1, ftune2_nz1 = band.compute_alias(self.fs, self.input_zone, self.tune_zone)
@@ -614,7 +651,11 @@ class Conversion:
             y = (band.fa + band.fb) / 2
             width = abs(ftune2_nz1 - ftune1_nz1)
             height = abs(band.fb - band.fa)
-            graph.rect(x, y, width, height, color=band.color, alpha=0.5)
+
+            if swap_axes:
+                graph.rect(y, x, height, width, color=band.color, alpha=0.5)
+            else:
+                graph.rect(x, y, width, height, color=band.color, alpha=0.5)
 
         # graph.legend.click_policy = "mute"
         graph.legend.visible = legend

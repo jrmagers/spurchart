@@ -4,6 +4,6 @@
 
 Basically, you will:
 
-1. Fork the GitHub scikit-rf repository,
+1. Fork the GitHub spurchart repository,
 2. Make your modifications.
 3. Then send a pull request (PR) for your additions to be merged into the main spurchart repository. Your proposal will be reviewed or discussed and you may receive some comments which only aim to make your contribution as great as possible!
