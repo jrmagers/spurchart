@@ -534,6 +534,10 @@ class Conversion:
         from bokeh.models import ColumnDataSource, HoverTool, Range1d, Title
         from bokeh.plotting import show
 
+        # number of axes tick locations
+        XDIVISIONS = 20
+        YDIVISIONS = 20
+
         graph = self.graph
         units = self.units
 
@@ -635,10 +639,10 @@ class Conversion:
         graph.x_range = Range1d(*xrange, bounds="auto")
         graph.y_range = Range1d(*yrange, bounds="auto")
 
-        xstep = (xrange[1] - xrange[0]) / 10
+        xstep = (xrange[1] - xrange[0]) / XDIVISIONS
         graph.xaxis.ticker = np.arange(xrange[0], xrange[1] + xstep, xstep)
 
-        ystep = (yrange[1] - yrange[0]) / 10
+        ystep = (yrange[1] - yrange[0]) / YDIVISIONS
         graph.yaxis.ticker = np.arange(yrange[0], yrange[1] + ystep, ystep)
 
         for band in self.bands:
