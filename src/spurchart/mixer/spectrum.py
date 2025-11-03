@@ -10,6 +10,7 @@ import matplotlib.ticker as ticker
 import numpy as np
 import pandas as pd
 import skrf
+import textalloc
 from matplotlib.patches import Rectangle
 
 from .core import (
@@ -310,6 +311,11 @@ class TxUp(SpectrumBase):
         # plot spurs
         # NOTE: nLO is not plotted in RX case. Should do it?
 
+        spurlabel_text = []
+        spurlabel_x = []
+        spurlabel_y = []
+        spurlabel_textcolor = []
+
         for _, patch in self._patches.iterrows():
             if patch.m == 0:
                 # nLO + mIF = RF --> RF = nLO
@@ -326,6 +332,11 @@ class TxUp(SpectrumBase):
                     label=label,
                     color=patch.color,
                 )
+
+                spurlabel_text.append(f"({patch.n:0.0f},{patch.m:0.0f})")
+                spurlabel_x.append(patch.x)  # + patch.width / 2)
+                spurlabel_y.append(threshold + patch.height)
+                spurlabel_textcolor.append(patch.color)
 
             else:
                 if patch.n == 0:
@@ -345,6 +356,27 @@ class TxUp(SpectrumBase):
                     **_PATCH_ARGS,
                 )
                 ax.add_patch(rect)
+
+                spurlabel_text.append(f"({patch.n:0.0f},{patch.m:0.0f})")
+                spurlabel_x.append(patch.x)  # + patch.width) / 2)
+                spurlabel_y.append(threshold + patch.height)
+                spurlabel_textcolor.append(patch.color)
+
+            textalloc.allocate(
+                ax,
+                x=spurlabel_x,
+                y=spurlabel_y,
+                text_list=spurlabel_text,
+                # x_scatter=spurlabel_x,
+                # y_scatter=spurlabel_y,
+                # direction="south",
+                ylims=(threshold, 0),  # seems like this doesn't work
+                xlims=self.frf,  # seems like this doesn't work
+                textcolor=spurlabel_textcolor,
+                max_distance=0.004,
+                min_distance=0.003,
+                draw_lines=False,
+            )
 
         ax.set_title(
             f"TX Spectrum: IF = {self.fif:0.6g} {units}, BW = {self.bw:0.6g} {units},"
