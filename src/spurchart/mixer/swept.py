@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
 import pandas as pd
+import textalloc
 from matplotlib.patches import Rectangle
 
 from .core import (
@@ -416,6 +417,31 @@ class SweptTransmit(SweptBase):
         self.fig, self.ax = plt.subplots(1, figsize=(10, 5.5))
 
         self.spurs["level"] = self.spurs.apply(self._plotspur, axis=1)
+
+        if False:
+            spurs = self.spurs
+            spurlabel_text = "(" + spurs.n.astype(str) + "," + spurs.m.astype(str) + ")"
+            # spurs_x = (self.frf[0] + self.frf[1]) / 2 * np.ones_like(spurs.n.values)
+            spurs_x = np.ones_like(spurs.n.values) * (self.frf[0] + self.frf[1]) / 2
+            print(spurs_x)
+
+            spurs_y = (spurs.flo_min + spurs.flo_max) / 2
+            print(spurs_y)
+            textalloc.allocate(
+                self.ax,
+                x=spurs_x,
+                y=spurs_y,
+                text_list=list(spurlabel_text),
+                # x_scatter=spurlabel_x,
+                # y_scatter=spurlabel_y,
+                # direction="south",
+                # ylims=(threshold, 0),  # seems like this doesn't work
+                # xlims=self.fif,  # seems like this doesn't work
+                textcolor=list(spurs.color),
+                # max_distance=0.004,
+                # min_distance=0.003,
+                draw_lines=False,
+            )
 
         self._annotate_axes()
 

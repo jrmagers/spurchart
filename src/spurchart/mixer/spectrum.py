@@ -863,11 +863,20 @@ class NormalLog:
                 lo = 1 / spur.n - spur.m / spur.n * rf
                 ax.loglog(rf, lo, label=f"({spur.n},{spur.m})", color=spur.color)
 
+                # textalloc.allocate(
+                #     ax,
+                #     rf,
+                #     lo,
+                #     text_list=[f"({spur.n},{spur.m})"],
+                #     x_lines=[rf],
+                #     y_lines=[lo],
+                # )
+
         self.ax = ax
         self.fig = fig
         self._annotate_axes()
 
-    def _annotate(self):
+    def _annotate_axes(self):
         ticks = [0.1, 0.2, 0.3, 0.5, 0.7, 1, 2, 3, 5, 7, 10]
         limits = (ticks[0], ticks[-1])
 
@@ -885,6 +894,6 @@ class NormalLog:
         ax.set_xlabel("RF/IF")
         ax.set_ylabel("LO/IF")
         ax.set_title(f"Normalized Spurs: |n|≤{self.order[0]}, |m|≤{self.order[1]}")
-        ax.grid()
-        leg = ax.legend(ncol=4, loc="upper left", fontsize="x-small")
+        # ax.grid()
+        leg = ax.legend(ncol=4, loc="upper left", fontsize="small", framealpha=1)
         leg._legend_box.align = "left"
