@@ -352,9 +352,11 @@ class SweptTransmit(SweptBase):
         flo1 = (f1 - m * self.fin) / n
         flo2 = (f2 - m * self.fin) / n
 
+        bw = self.bw
+
         width = f2 - f1
-        height = flo2 - flo1
-        xy = (f1, flo1)
+        height = flo2 - flo1 - bw
+        xy = (f1, flo1 + bw / 2)
 
         rect = Rectangle(xy=xy, width=width, height=height, **kwargs)
         self.ax.add_patch(rect)
@@ -587,15 +589,20 @@ class SweptReceive(SweptBase):
         flo1 = (f1 - m * self.fout) / n
         flo2 = (f2 - m * self.fout) / n
 
+        bw = self.bw
+
         width = f2 - f1
-        height = abs(flo2 - flo1)
+        height = abs(flo2 - flo1) - bw
 
         if n > 0 and m > 0:
-            xy = (f1, -flo1 - height)
+            xy = (f1, -flo1 - height - bw / 2)  # TODO: <-- is correct?
+            print("a")
         elif n < 0 and m > 0:
-            xy = (f1, -flo1)
+            xy = (f1, -flo1 - bw / 2)  # TODO: <-- is correct?
+            print("b")
         else:
-            xy = (f1, flo1)
+            xy = (f1, flo1 + bw / 2)
+            print("c")
 
         rect = Rectangle(xy=xy, width=width, height=height, **kwargs)
         self.ax.add_patch(rect)
