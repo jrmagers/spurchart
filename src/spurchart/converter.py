@@ -268,6 +268,7 @@ class Conversion:
     units: str = "GHz"
     bands: List[Band] = field(default_factory=list)
     deduplicate: bool = True
+    converter: str = "adc"
 
     def addband(self, fa, fb, n=1, k=0, M=1, name="", color="yellow"):
         """Add a band."""
@@ -537,72 +538,111 @@ class Conversion:
         # number of axes tick locations
         XDIVISIONS = 20
         YDIVISIONS = 20
+        LATEX = True
 
         graph = self.graph
         units = self.units
+        spurs = self.spurs
+        n, k = self.order
+        fn = self.fs / 2
 
         if is_notebook():
             from bokeh.plotting import output_notebook
 
             output_notebook()  # make in-line Bokeh plots in Jupyter Notebook / VS Code
 
-        spurs = self.spurs
+        data = pd.DataFrame(
+            {
+                "n": spurs.n.values,
+                "k": spurs.k.values,
+                "M": spurs.M.values,
+                "colors": self.__get_colormap(),
+                "labels": spurs.label,
+                "nz": spurs.nz,
+            }
+        )
 
-        colormap = self.__get_colormap()
+        if self.converter == "adc":
+            data["y"] = spurs[["ftune1_nz1", "ftune2_nz1"]].values.tolist()
+            data["x"] = spurs[["fc1", "fc2"]].values.tolist()
+            if swap_axes:
+                data["x"] = spurs[["ftune1_nz1", "ftune2_nz1"]].values.tolist()
+                data["y"] = spurs[["fc1", "fc2"]].values.tolist()
 
-        data = {
-            "y": spurs[["ftune1_nz1", "ftune2_nz1"]].values.tolist(),
-            "x": spurs[["fc1", "fc2"]].values.tolist(),
-            "n": spurs.n.values,
-            "k": spurs.k.values,
-            "M": spurs.M.values,
-            "colors": colormap,
-            "labels": spurs.label,
-            "nz": spurs.nz,
-        }
-
-        tooltips = [
-            ("n, k", "@n, @k"),
-            ("NZ", "@nz"),
-            ("Input", f"$x {units}"),
-            ("Tune (NCO)", f"$y {units}"),
-        ]
-
-        if swap_axes:
+        if self.converter == "dac":
             data["x"] = spurs[["ftune1_nz1", "ftune2_nz1"]].values.tolist()
             data["y"] = spurs[["fc1", "fc2"]].values.tolist()
+            if swap_axes:
+                data["y"] = spurs[["ftune1_nz1", "ftune2_nz1"]].values.tolist()
+                data["x"] = spurs[["fc1", "fc2"]].values.tolist()
 
-            tooltips = [
-                ("n, k", "@n, @k"),
-                ("NZ", "@nz"),
-                ("Input", f"$y {units}"),
-                ("Tune (NCO)", f"$x {units}"),
-            ]
-
-        source = ColumnDataSource(data)
+        # data filtering
+        # spurs[spurs.nz <= 3]
 
         ml = graph.multi_line(
             xs="x",
             ys="y",
             color="colors",
             legend_field="labels",
-            source=source,
+            source=ColumnDataSource(data),
             line_width=2,
             muted_color="colors",
             muted_alpha=0.2,
         )
 
-        hover_tool_ml = HoverTool(line_policy="interp", renderers=[ml], tooltips=tooltips)
+        tooltips = [("n, k", "@n, @k"), ("NZ", "@nz")]
 
-        n, k = self.order
+        if self.converter == "adc":
+
+            if LATEX:
+                subtitle_str = rf"$$f_{{NCO}} = n·f_{{IN}} + k·f_S/{self.M}, |n| ≤ {n}, |k| ≤ {k}$$"
+                nco_label = rf"NCO Frequency $$f_{{NCO}}$$ [{units}]"
+                fin_label = rf"Input Frequency $$f_{{IN}}$$ [{units}]"
+            else:
+                subtitle_str = f"f_NCO = n·f_IN + k·f_S/{self.M}, |n| ≤ {n}, |k| ≤ {k}"
+                nco_label = f"NCO Frequency f_NCO [{units}]"
+                fin_label = f"Input Frequency f_IN [{units}]"
+
+            if swap_axes:
+                graph.xaxis.axis_label = nco_label
+                graph.yaxis.axis_label = fin_label
+                tooltips += [("Input", f"$y {units}"), ("Tune (NCO)", f"$x {units}")]
+            else:
+                graph.xaxis.axis_label = fin_label
+                graph.yaxis.axis_label = nco_label
+                tooltips += [("Input", f"$x {units}"), ("Tune (NCO)", f"$y {units}")]
+
+        else:  # this is a dac
+
+            if LATEX:
+                subtitle_str = (
+                    rf"$$f_{{OUT}} = n·f_{{NCO}} + k·f_S/{self.M}, |n| ≤ {n}, |k| ≤ {k}$$"
+                )
+                nco_label = rf"NCO Frequency $$f_{{NCO}}$$ [{units}]"
+                fout_label = rf"Output Frequency $$f_{{OUT}}$$ [{units}]"
+            else:
+                subtitle_str = f"f_OUT = n·f_NCO + k·f_S/{self.M}, |n| ≤ {n}, |k| ≤ {k}"
+                nco_label = f"NCO Frequency f_NCO [{units}]"
+                fout_label = f"Output Frequency f_OUT [{units}]"
+
+            if swap_axes:
+                graph.xaxis.axis_label = nco_label
+                graph.yaxis.axis_label = fout_label
+                tooltips += [("NCO", f"$x {units}"), ("Output", f"$y {units}")]
+            else:
+                graph.xaxis.axis_label = fout_label
+                graph.yaxis.axis_label = nco_label
+                tooltips = [("NCO", f"$y {units}"), ("Output", f"$x {units}")]
 
         title_str = (
-            f"Carrier Sweep Across Nyquist Zone {self.input_zone}: "
+            f"{self.converter.upper()} Carrier Sweep Across Nyquist Zone {self.input_zone}: "
             + f"[{self.fc[0]},{self.fc[1]}] {units} "
             + f"for Sample-rate of {self.fs} {units[0]}S/s"
         )
 
-        subtitle_str = rf"$$n·f_C + k·f_S/{self.M} = f_{{TUNE}}, |n| ≤ {n}, |k| ≤ {k}$$"
+        graph.axis.axis_label_text_font_style = "normal"  # non-italic axis labels
+        graph.xaxis.major_label_text_font_size = "10pt"
+        graph.yaxis.major_label_text_font_size = "10pt"
 
         graph.add_layout(
             Title(
@@ -614,25 +654,15 @@ class Conversion:
         )
         graph.add_layout(Title(text=title_str, text_font_size="12pt"), "above")
 
+        # add hover tooltop
+        hover_tool_ml = HoverTool(line_policy="interp", renderers=[ml], tooltips=tooltips)
         graph.add_tools(hover_tool_ml)
         graph.toolbar.logo = None
-
-        graph.axis.axis_label_text_font_style = "normal"  # non-italic axis labels
-        graph.xaxis.major_label_text_font_size = "10pt"
-        graph.yaxis.major_label_text_font_size = "10pt"
-
-        graph.xaxis.axis_label = rf"Carrier Frequency $$f_C$$ [{units}]"
-        graph.yaxis.axis_label = rf"Tune Frequency $$f_{{TUNE}}$$ [{units}]"
-
-        fn = self.fs / 2
 
         xrange = fn * np.array([self.input_zone - 1, self.input_zone])
         yrange = fn * np.array([self.tune_zone - 1, self.tune_zone])
 
-        if swap_axes:
-            graph.xaxis.axis_label = rf"Tune Frequency $$f_{{TUNE}}$$ [{units}]"
-            graph.yaxis.axis_label = rf"Carrier Frequency $$f_C$$ [{units}]"
-
+        if self.converter == "dac" and swap_axes:
             xrange = fn * np.array([self.tune_zone - 1, self.tune_zone])
             yrange = fn * np.array([self.input_zone - 1, self.input_zone])
 
