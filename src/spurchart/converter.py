@@ -253,6 +253,8 @@ class Conversion:
     deduplicate : bool
         remove spurs that are coincident in frequency but may have different values of (n,k).
         Default is True.
+    converter : str
+        'dac' or 'adc' (default is 'adc')
 
     Reference
     ---------
@@ -562,22 +564,25 @@ class Conversion:
             }
         )
 
-        if self.converter == "adc":
-            data["y"] = spurs[["ftune1_nz1", "ftune2_nz1"]].values.tolist()
+        if (self.converter == "adc" and not swap_axes) or (self.converter == "dac" and swap_axes):
             data["x"] = spurs[["fc1", "fc2"]].values.tolist()
-            if swap_axes:
-                data["x"] = spurs[["ftune1_nz1", "ftune2_nz1"]].values.tolist()
-                data["y"] = spurs[["fc1", "fc2"]].values.tolist()
-
-        if self.converter == "dac":
+            data["y"] = spurs[["ftune1_nz1", "ftune2_nz1"]].values.tolist()
+        else:
+            # (self.converter == "adc" and swap_axes) or (self.converter == "dac" and not swap_axes):
             data["x"] = spurs[["ftune1_nz1", "ftune2_nz1"]].values.tolist()
             data["y"] = spurs[["fc1", "fc2"]].values.tolist()
-            if swap_axes:
-                data["y"] = spurs[["ftune1_nz1", "ftune2_nz1"]].values.tolist()
-                data["x"] = spurs[["fc1", "fc2"]].values.tolist()
 
-        # data filtering
-        # spurs[spurs.nz <= 3]
+        if False:
+            # data filtering
+            # spurs[spurs.nz <= 3]
+            highlight = [(2, -8), (-2, 1), (1, 0)]
+            colors = []
+            for nn, kk in highlight:
+                colors.append(data.colors[(data.n == nn) & (data.k == kk)])
+
+            data.colors = "#D3D3D3"  # set light grey
+            for x, (nn, kk) in enumerate(highlight):
+                data.loc[(data.n == nn) & (data.k == kk), "colors"] = colors[x]
 
         ml = graph.multi_line(
             xs="x",
@@ -632,7 +637,7 @@ class Conversion:
             else:
                 graph.xaxis.axis_label = fout_label
                 graph.yaxis.axis_label = nco_label
-                tooltips = [("NCO", f"$y {units}"), ("Output", f"$x {units}")]
+                tooltips += [("NCO", f"$y {units}"), ("Output", f"$x {units}")]
 
         title_str = (
             f"{self.converter.upper()} Carrier Sweep Across Nyquist Zone {self.input_zone}: "
@@ -654,7 +659,7 @@ class Conversion:
         )
         graph.add_layout(Title(text=title_str, text_font_size="12pt"), "above")
 
-        # add hover tooltop
+        # add hover tooltip
         hover_tool_ml = HoverTool(line_policy="interp", renderers=[ml], tooltips=tooltips)
         graph.add_tools(hover_tool_ml)
         graph.toolbar.logo = None
@@ -669,11 +674,11 @@ class Conversion:
         graph.x_range = Range1d(*xrange, bounds="auto")
         graph.y_range = Range1d(*yrange, bounds="auto")
 
-        xstep = (xrange[1] - xrange[0]) / XDIVISIONS
-        graph.xaxis.ticker = np.arange(xrange[0], xrange[1] + xstep, xstep)
+        # xstep = (xrange[1] - xrange[0]) / XDIVISIONS
+        # graph.xaxis.ticker = np.arange(xrange[0], xrange[1] + xstep, xstep)
 
-        ystep = (yrange[1] - yrange[0]) / YDIVISIONS
-        graph.yaxis.ticker = np.arange(yrange[0], yrange[1] + ystep, ystep)
+        # ystep = (yrange[1] - yrange[0]) / YDIVISIONS
+        # graph.yaxis.ticker = np.arange(yrange[0], yrange[1] + ystep, ystep)
 
         for band in self.bands:
             ftune1_nz1, ftune2_nz1 = band.compute_alias(self.fs, self.input_zone, self.tune_zone)
