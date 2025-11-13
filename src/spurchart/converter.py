@@ -271,6 +271,7 @@ class Conversion:
     bands: List[Band] = field(default_factory=list)
     deduplicate: bool = True
     converter: str = "adc"
+    max_aliasing: int = np.inf
 
     def addband(self, fa, fb, n=1, k=0, M=1, name="", color="yellow"):
         """Add a band."""
@@ -290,6 +291,8 @@ class Conversion:
             self._deduplicate()
 
         self._fix_vertical_spurs()
+
+        self.spurs = self.spurs[self.spurs.nz <= self.max_aliasing]
 
         from bokeh.plotting import figure
 
@@ -531,7 +534,7 @@ class Conversion:
 
         return colormap[:numlines]
 
-    def plot(self, filename=None, legend=False, hide=False, swap_axes=False):
+    def plot(self, filename=None, legend=False, hide=False, swap_axes=False, highlight=[]):
         """Plot spurchart using bokeh."""
         # from bokeh.io import curdoc, export_png
         from bokeh.models import ColumnDataSource, HoverTool, Range1d, Title
@@ -572,17 +575,18 @@ class Conversion:
             data["x"] = spurs[["ftune1_nz1", "ftune2_nz1"]].values.tolist()
             data["y"] = spurs[["fc1", "fc2"]].values.tolist()
 
-        if False:
-            # data filtering
-            # spurs[spurs.nz <= 3]
-            highlight = [(2, -8), (-2, 1), (1, 0)]
+        if highlight:
             colors = []
             for nn, kk in highlight:
                 colors.append(data.colors[(data.n == nn) & (data.k == kk)])
 
-            data.colors = "#D3D3D3"  # set light grey
+            data.colors = "#e6e6e6"  # 10% black
+            data.labels = ""
             for x, (nn, kk) in enumerate(highlight):
+                # TODO: match by nz as well?
+                # TODO: add nz to labels
                 data.loc[(data.n == nn) & (data.k == kk), "colors"] = colors[x]
+                data.loc[(data.n == nn) & (data.k == kk), "labels"] = f"{nn},{kk}"
 
         ml = graph.multi_line(
             xs="x",
@@ -664,15 +668,17 @@ class Conversion:
         graph.add_tools(hover_tool_ml)
         graph.toolbar.logo = None
 
-        xrange = fn * np.array([self.input_zone - 1, self.input_zone])
-        yrange = fn * np.array([self.tune_zone - 1, self.tune_zone])
+        ##
+        # xrange = fn * np.array([self.input_zone - 1, self.input_zone])
+        # yrange = fn * np.array([self.tune_zone - 1, self.tune_zone])
 
-        if self.converter == "dac" and swap_axes:
-            xrange = fn * np.array([self.tune_zone - 1, self.tune_zone])
-            yrange = fn * np.array([self.input_zone - 1, self.input_zone])
+        # if self.converter == "dac" and swap_axes:
+        #     xrange = fn * np.array([self.tune_zone - 1, self.tune_zone])
+        #     yrange = fn * np.array([self.input_zone - 1, self.input_zone])
 
-        graph.x_range = Range1d(*xrange, bounds="auto")
-        graph.y_range = Range1d(*yrange, bounds="auto")
+        # graph.x_range = Range1d(*xrange, bounds="auto")
+        # graph.y_range = Range1d(*yrange, bounds="auto")
+        ##
 
         # xstep = (xrange[1] - xrange[0]) / XDIVISIONS
         # graph.xaxis.ticker = np.arange(xrange[0], xrange[1] + xstep, xstep)
