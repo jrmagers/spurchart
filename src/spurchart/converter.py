@@ -644,11 +644,11 @@ class Conversion:
         if self.converter == "adc":
 
             if LATEX:
-                subtitle_str = rf"$$f_{{NCO}} = n·f_{{IN}} + k·f_S/M, |n| ≤ {n}, |k| ≤ {k}, M = {{1 or {self.M}}}$$"
+                subtitle_str = rf"$$f_{{NCO}} = n·f_{{IN}} + k·f_S/M, |n| ≤ {n}, |k| ≤ {k}, M = {1} | {self.M}$$"
                 nco_label = rf"NCO Frequency $$f_{{NCO}}$$ [{units}]"
                 fin_label = rf"Input Frequency $$f_{{IN}}$$ [{units}]"
             else:
-                subtitle_str = f"f_NCO = n·f_IN + k·f_S/{self.M}, |n| ≤ {n}, |k| ≤ {k}"
+                subtitle_str = f"f_NCO = n·f_IN + k·f_S/M, |n| ≤ {n}, |k| ≤ {k}, M = {1} | {self.M}"
                 nco_label = f"NCO Frequency f_NCO [{units}]"
                 fin_label = f"Input Frequency f_IN [{units}]"
 
@@ -664,13 +664,13 @@ class Conversion:
         else:  # this is a dac
 
             if LATEX:
-                subtitle_str = (
-                    rf"$$f_{{OUT}} = n·f_{{NCO}} + k·f_S/{self.M}, |n| ≤ {n}, |k| ≤ {k}$$"
-                )
+                subtitle_str = rf"$$f_{{OUT}} = n·f_{{NCO}} + k·f_S/M, |n| ≤ {n}, |k| ≤ {k}, M = {1} | {self.M}$$"
                 nco_label = rf"NCO Frequency $$f_{{NCO}}$$ [{units}]"
                 fout_label = rf"Output Frequency $$f_{{OUT}}$$ [{units}]"
             else:
-                subtitle_str = f"f_OUT = n·f_NCO + k·f_S/{self.M}, |n| ≤ {n}, |k| ≤ {k}"
+                subtitle_str = (
+                    f"f_OUT = n·f_NCO + k·f_S/M, |n| ≤ {n}, |k| ≤ {k}, M = {1} | {self.M}"
+                )
                 nco_label = f"NCO Frequency f_NCO [{units}]"
                 fout_label = f"Output Frequency f_OUT [{units}]"
 
