@@ -332,7 +332,7 @@ class Conversion:
         spurs_by_zone.k = spurs_by_zone.k.astype(int)
         spurs_by_zone.M = spurs_by_zone.M.astype(int)
 
-        cols = ["n", "k", "nz"]
+        cols = ["n", "k", "nz", "M"]
         spurs_by_zone["label"] = spurs_by_zone[cols].apply(
             lambda row: ", ".join(row.values.astype(str)), axis=1
         )
@@ -501,7 +501,7 @@ class Conversion:
         spurs = self.spurs
         spurs["|n|"] = abs(spurs.n)
         spurs["|k|"] = abs(spurs.k)
-        spurs = spurs.sort_values(by=["|n|", "nz", "|k|"])
+        spurs = spurs.sort_values(by=["M", "|n|", "nz", "|k|"])
         self.spurs = spurs.drop(columns=["|n|", "|k|"])
 
     def _deduplicate(self):
@@ -524,8 +524,8 @@ class Conversion:
         self.spurs = spurs[~duplicates]
         self.duplicate_spurs = spurs[duplicates]
 
-    def __get_colormap(self):
-        numlines = self.spurs.shape[0]
+    @staticmethod
+    def __get_colormap(numlines):
         colormap = getattr(colorcet, "glasbey")
 
         # duplicate colormap to make sure there are enough entries
@@ -534,7 +534,15 @@ class Conversion:
 
         return colormap[:numlines]
 
-    def plot(self, filename=None, legend=False, hide=False, swap_axes=False, highlight=[]):
+    def plot(
+        self,
+        filename=None,
+        legend=False,
+        hide=False,
+        swap_axes=False,
+        noninterleaved=[],
+        interleaved=[],
+    ):
         """Plot spurchart using bokeh."""
         # from bokeh.io import curdoc, export_png
         from bokeh.models import ColumnDataSource, HoverTool, Range1d, Title
@@ -548,7 +556,6 @@ class Conversion:
         graph = self.graph
         units = self.units
         spurs = self.spurs
-        n, k = self.order
         fn = self.fs / 2
 
         if is_notebook():
@@ -561,9 +568,11 @@ class Conversion:
                 "n": spurs.n.values,
                 "k": spurs.k.values,
                 "M": spurs.M.values,
-                "colors": self.__get_colormap(),
+                "colors": self.__get_colormap(spurs.shape[0]),
                 "labels": spurs.label,
                 "nz": spurs.nz,
+                "line_width": 2,
+                "line_dash": "solid",
             }
         )
 
@@ -575,18 +584,47 @@ class Conversion:
             data["x"] = spurs[["ftune1_nz1", "ftune2_nz1"]].values.tolist()
             data["y"] = spurs[["fc1", "fc2"]].values.tolist()
 
-        if highlight:
-            colors = []
-            for nn, kk in highlight:
-                colors.append(data.colors[(data.n == nn) & (data.k == kk)])
+        ### Spur Highlighting
 
-            data.colors = "#e6e6e6"  # 10% black
-            data.labels = ""
-            for x, (nn, kk) in enumerate(highlight):
-                # TODO: match by nz as well?
-                # TODO: add nz to labels
-                data.loc[(data.n == nn) & (data.k == kk), "colors"] = colors[x]
-                data.loc[(data.n == nn) & (data.k == kk), "labels"] = f"{nn},{kk}"
+        if interleaved or nonlinterleaved:
+            colors = self.__get_colormap(len(interleaved) + len(noninterleaved))
+
+            data.colors = "#e6e6e6"  # set all spurs to light grey (10% black)
+            data.labels = "others"  # "hide" all labels
+            data.line_width = 1
+
+        if noninterleaved:
+            # highlight non-interleaved spurs (M = 1)
+            M = 1
+
+            for spur, color in zip(noninterleaved, colors[: len(noninterleaved)]):
+                if len(spur) == 2:
+                    n, k = spur
+                    nz = 1
+                else:
+                    n, k, nz = spur
+
+                spur_selected = (data.n == n) & (data.k == k) & (data.nz == nz) & (data.M == M)
+                data.loc[spur_selected, "colors"] = color
+                data.loc[spur_selected, "labels"] = f"{n},{k},{nz}"
+                data.loc[spur_selected, "line_width"] = 2
+
+        if interleaved:
+            # highlight interleaved spurs (M != 1)
+            M = self.M
+
+            for spur, color in zip(interleaved, colors[len(noninterleaved) :]):
+                if len(spur) == 2:
+                    n, k = spur
+                    nz = 1
+                else:
+                    n, k, nz = spur
+
+                spur_selected = (data.n == n) & (data.k == k) & (data.nz == nz) & (data.M == M)
+                data.loc[spur_selected, "colors"] = color
+                data.loc[spur_selected, "labels"] = f"{n},{k},{nz}"
+                data.loc[spur_selected, "line_width"] = 2
+                data.loc[spur_selected, "line_dash"] = "dashed"
 
         ml = graph.multi_line(
             xs="x",
@@ -594,17 +632,19 @@ class Conversion:
             color="colors",
             legend_field="labels",
             source=ColumnDataSource(data),
-            line_width=2,
+            line_width="line_width",
+            line_dash="line_dash",
             muted_color="colors",
             muted_alpha=0.2,
         )
 
-        tooltips = [("n, k", "@n, @k"), ("NZ", "@nz")]
+        tooltips = [("n, k", "@n, @k"), ("NZ", "@nz"), ("M", "@M")]
 
+        n, k = self.order
         if self.converter == "adc":
 
             if LATEX:
-                subtitle_str = rf"$$f_{{NCO}} = n·f_{{IN}} + k·f_S/{self.M}, |n| ≤ {n}, |k| ≤ {k}$$"
+                subtitle_str = rf"$$f_{{NCO}} = n·f_{{IN}} + k·f_S/M, |n| ≤ {n}, |k| ≤ {k}, M = {{1 or {self.M}}}$$"
                 nco_label = rf"NCO Frequency $$f_{{NCO}}$$ [{units}]"
                 fin_label = rf"Input Frequency $$f_{{IN}}$$ [{units}]"
             else:
