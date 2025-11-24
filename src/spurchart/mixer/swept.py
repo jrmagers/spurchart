@@ -322,7 +322,7 @@ class SweptTransmit(SweptBase):
             flo = (fout - row.m * fin) / row.n
         return flo
 
-    def band(self, n: int, m: int, f: Tuple[float, float], **kwargs):
+    def band(self, n: int, m: int, f: Tuple[float, float], bw=None, **kwargs):
         """Annotate a band on the spurchart using a rectangle.
 
         Parameters
@@ -333,6 +333,8 @@ class SweptTransmit(SweptBase):
             intermod m
         f : tuple
             beginning and ending frequency of band
+        bw : float
+            instantaneous bandwidth. Default is self.bw.
 
         Other Parameters
         ----------------
@@ -352,19 +354,15 @@ class SweptTransmit(SweptBase):
         flo1 = (f1 - m * self.fin) / n
         flo2 = (f2 - m * self.fin) / n
 
+        if bw is None:
+            bw = self.bw
+
         width = f2 - f1
-        height = flo2 - flo1
-        xy = (f1, flo1)
+        height = flo2 - flo1 - bw
+        xy = (f1, flo1 + bw / 2)
 
         rect = Rectangle(xy=xy, width=width, height=height, **kwargs)
         self.ax.add_patch(rect)
-
-        # if annotate_bands:
-        #    ax.text(f1,-m/n*f1+b-m/n*(f2-f1),'{}'.format(f1),size=12,
-        #            ha='right',va='bottom',color=color)
-        #
-        #    ax.text(f2,-m/n*f1+b,'{}'.format(f2),size=12,
-        #            ha='left',va='top',color=color)
 
     def _generate_spur_table(self):
         intermods = mixer_products(*self.order)
@@ -558,7 +556,7 @@ class SweptReceive(SweptBase):
 
         return flo
 
-    def band(self, n: int, m: int, f: Tuple[float, float], **kwargs):
+    def band(self, n: int, m: int, f: Tuple[float, float], bw=None, **kwargs):
         """Annotate a band on the spurchart using a rectangle.
 
         Parameters
@@ -569,6 +567,8 @@ class SweptReceive(SweptBase):
             intermod m
         f : tuple
             beginning and ending frequency of band
+        bw : float
+            instantaneous bandwidth. Default is self.bw.
 
         Other Parameters
         ----------------
@@ -587,25 +587,23 @@ class SweptReceive(SweptBase):
         flo1 = (f1 - m * self.fout) / n
         flo2 = (f2 - m * self.fout) / n
 
+        if bw is None:
+            bw = self.bw
+
         width = f2 - f1
-        height = abs(flo2 - flo1)
+        height = abs(flo2 - flo1) - bw
 
         if n > 0 and m > 0:
-            xy = (f1, -flo1 - height)
+            xy = (f1, -flo1 - height - bw / 2)  # TODO: <-- is correct?
+            print(">> NEED TO TEST n>0,m>0")
         elif n < 0 and m > 0:
-            xy = (f1, -flo1)
+            xy = (f1, -flo1 - bw / 2)  # TODO: <-- is correct?
+            print(">> NEED TO TEST n<0,m>0")
         else:
-            xy = (f1, flo1)
+            xy = (f1, flo1 + bw / 2)  # tested -- works correctly
 
         rect = Rectangle(xy=xy, width=width, height=height, **kwargs)
         self.ax.add_patch(rect)
-
-        # if annotate_bands:
-        #    ax.text(f1,-m/n*f1+b-m/n*(f2-f1),'{}'.format(f1),size=12,
-        #            ha='right',va='bottom',color=color)
-        #
-        #    ax.text(f2,-m/n*f1+b,'{}'.format(f2),size=12,
-        #            ha='left',va='top',color=color)
 
     def _generate_spur_table(self):
         intermods = mixer_products(*self.order)
