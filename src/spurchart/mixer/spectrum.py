@@ -10,6 +10,7 @@ import matplotlib.ticker as ticker
 import numpy as np
 import pandas as pd
 import skrf
+import textalloc
 from matplotlib.patches import Rectangle
 
 from .core import (
@@ -44,6 +45,7 @@ class SpectrumBase:
     lo_if: float = 40
     threshold: float = _THRESHOLD
     units: str = _FREQUENCY_UNITS
+    label: bool = True
 
     def __post_init__(self):
         self._intermods = mixer_products(*self.order)
@@ -307,10 +309,13 @@ class TxUp(SpectrumBase):
 
         self._annotate_axes()
 
+        patches = self._patches
+
         # plot spurs
         # NOTE: nLO is not plotted in RX case. Should do it?
 
-        for _, patch in self._patches.iterrows():
+        for _, patch in patches.iterrows():
+
             if patch.m == 0:
                 # nLO + mIF = RF --> RF = nLO
                 rf = patch.n * self.flo
@@ -345,6 +350,24 @@ class TxUp(SpectrumBase):
                     **_PATCH_ARGS,
                 )
                 ax.add_patch(rect)
+
+        if self.label:
+            spurlabel_text = "(" + patches.n.astype(str) + "," + patches.m.astype(str) + ")"
+            textalloc.allocate(
+                ax,
+                x=patches.x,
+                y=patches.level,
+                text_list=list(spurlabel_text),
+                # x_scatter=spurlabel_x,
+                # y_scatter=spurlabel_y,
+                # direction="south",
+                ylims=(threshold, 0),  # seems like this doesn't work
+                xlims=self.frf,  # seems like this doesn't work
+                textcolor=list(patches.color),
+                max_distance=0.004,
+                min_distance=0.003,
+                draw_lines=False,
+            )
 
         ax.set_title(
             f"TX Spectrum: IF = {self.fif:0.6g} {units}, BW = {self.bw:0.6g} {units},"
@@ -426,9 +449,11 @@ class TxDown(SpectrumBase):
 
         self._annotate_axes()
 
+        patches = self._patches
+
         # NOTE: nLO is not plotted in RX case. Should do it?
 
-        for _, patch in self._patches.iterrows():
+        for _, patch in patches.iterrows():
             if patch.m == 0:
                 # nLO + mRF = RF --> IF = nLO
                 fif = patch.n * self.flo
@@ -464,6 +489,24 @@ class TxDown(SpectrumBase):
                     **_PATCH_ARGS,
                 )
                 ax.add_patch(rect)
+
+        if self.label:
+            spurlabel_text = "(" + patches.n.astype(str) + "," + patches.m.astype(str) + ")"
+            textalloc.allocate(
+                ax,
+                x=patches.x,
+                y=patches.level,
+                text_list=list(spurlabel_text),
+                # x_scatter=spurlabel_x,
+                # y_scatter=spurlabel_y,
+                # direction="south",
+                ylims=(threshold, 0),  # seems like this doesn't work
+                xlims=self.fif,  # seems like this doesn't work
+                textcolor=list(patches.color),
+                max_distance=0.004,
+                min_distance=0.003,
+                draw_lines=False,
+            )
 
         ax.set_title(
             f"TX Spectrum: RF = {self.frf:0.6g} {units}, BW = {self.bw:0.6g} {units},"
@@ -554,6 +597,8 @@ class RxUp(SpectrumBase):
 
         self._annotate_axes()
 
+        patches = self._patches
+
         for _, patch in self._patches.iterrows():
             if patch.n == 0:
                 # nLO + mIF = RF --> IF = RF/m
@@ -604,6 +649,24 @@ class RxUp(SpectrumBase):
                     **_PATCH_ARGS,
                 )
                 ax.add_patch(rect)
+
+        if self.label:
+            spurlabel_text = "(" + patches.n.astype(str) + "," + patches.m.astype(str) + ")"
+            textalloc.allocate(
+                ax,
+                x=patches.x,
+                y=patches.level,
+                text_list=list(spurlabel_text),
+                # x_scatter=spurlabel_x,
+                # y_scatter=spurlabel_y,
+                # direction="south",
+                ylims=(threshold, 0),  # seems like this doesn't work
+                xlims=self.fif,  # seems like this doesn't work
+                textcolor=list(patches.color),
+                max_distance=0.004,
+                min_distance=0.003,
+                draw_lines=False,
+            )
 
         ax.set_title(
             f"RX Spectrum: RF = {self.frf:0.6g} {units}, BW = {self.bw:0.6g} {units},"
@@ -690,9 +753,11 @@ class RxDown(SpectrumBase):
 
         self._annotate_axes()
 
+        patches = self._patches
+
         # NOTE: nLO is not plotted in RX case. Should do it?
 
-        for _, patch in self._patches.iterrows():
+        for _, patch in patches.iterrows():
             if patch.n == 0:
                 # nLO + mRF = IF --> RF = IF/m
                 # TODO: level is not correct for IF/1: Need to incorporate RF-IF isolation
@@ -742,6 +807,24 @@ class RxDown(SpectrumBase):
                     **_PATCH_ARGS,
                 )
                 ax.add_patch(rect)
+
+        if self.label:
+            spurlabel_text = "(" + patches.n.astype(str) + "," + patches.m.astype(str) + ")"
+            textalloc.allocate(
+                ax,
+                x=patches.x,
+                y=patches.level,
+                text_list=list(spurlabel_text),
+                # x_scatter=spurlabel_x,
+                # y_scatter=spurlabel_y,
+                # direction="south",
+                ylims=(threshold, 0),  # seems like this doesn't work
+                xlims=self.frf,  # seems like this doesn't work
+                textcolor=list(patches.color),
+                max_distance=0.004,
+                min_distance=0.003,
+                draw_lines=False,
+            )
 
         ax.set_title(
             f"RX Spectrum: IF = {self.fif:0.6g} {units}, BW = {self.bw:0.6g} {units},"
