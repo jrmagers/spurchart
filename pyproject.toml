@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "spurchart"
-version = "0.0.24"
+version = "0.0.25"
 description = "Spur charts for super-heterodyne mixers, DACs, and ADCs"
 authors = ["Justin Magers <magers@ieee.org>"]
 

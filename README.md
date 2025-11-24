@@ -5,7 +5,7 @@ Create spur charts for super-heterodyne mixing, analog-to-digital conversion, an
 
 [Mixer Spurcharts](docs/mixer/index.md).
 
-[Converter Spurcharts](docs/converter/index.md).
+[Converter (ADC and DAC) Spurcharts](docs/converter/index.md).
 
 ## Contribution
 
