@@ -597,10 +597,9 @@ class SweptReceive(SweptBase):
             xy = (f1, -flo1 - height - bw / 2)  # TODO: <-- is correct?
             print(">> NEED TO TEST n>0,m>0")
         elif n < 0 and m > 0:
-            xy = (f1, -flo1 - bw / 2)  # TODO: <-- is correct?
-            print(">> NEED TO TEST n<0,m>0")
+            xy = (f1, -flo1 + bw / 2)
         else:
-            xy = (f1, flo1 + bw / 2)  # tested -- works correctly
+            xy = (f1, flo1 + bw / 2)
 
         rect = Rectangle(xy=xy, width=width, height=height, **kwargs)
         self.ax.add_patch(rect)
