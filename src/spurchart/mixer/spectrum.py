@@ -26,7 +26,7 @@ from .core import (
 )
 from .models import henderson
 
-_PATCH_ARGS = {"alpha": 0.5, "linewidth": 1}
+_PATCH_ARGS = {"alpha": 0.5, "linewidth": None, "snap": True}
 
 
 @dataclass(kw_only=True)
