@@ -11,6 +11,8 @@ import numpy as np
 import pandas as pd
 import skrf
 import textalloc
+
+# from adjustText import adjust_text
 from matplotlib.patches import Rectangle
 
 from .core import (
@@ -141,6 +143,7 @@ class SpectrumBase:
         ax.yaxis.set_major_locator(ticker.MultipleLocator(10))
         ax.set_ylim(self.threshold, 0)
         ax.set_axisbelow(True)
+        self.ax = ax
 
     def _annotate_legend(self, legend_title):
         ax = self.ax
@@ -308,6 +311,7 @@ class TxUp(SpectrumBase):
         ]
 
         self._annotate_axes()
+        ax = self.ax
 
         patches = self._patches
 
@@ -355,17 +359,11 @@ class TxUp(SpectrumBase):
             spurlabel_text = "(" + patches.n.astype(str) + "," + patches.m.astype(str) + ")"
             textalloc.allocate(
                 ax,
-                x=patches.x,
+                x=np.clip(patches.x, *ax.get_xlim()),
                 y=patches.level,
                 text_list=list(spurlabel_text),
-                # x_scatter=spurlabel_x,
-                # y_scatter=spurlabel_y,
-                # direction="south",
-                ylims=(threshold, 0),  # seems like this doesn't work
-                xlims=self.frf,  # seems like this doesn't work
                 textcolor=list(patches.color),
-                max_distance=0.004,
-                min_distance=0.003,
+                min_distance=0.005,
                 draw_lines=False,
             )
 
@@ -448,6 +446,7 @@ class TxDown(SpectrumBase):
         ]
 
         self._annotate_axes()
+        ax = self.ax
 
         patches = self._patches
 
@@ -494,17 +493,11 @@ class TxDown(SpectrumBase):
             spurlabel_text = "(" + patches.n.astype(str) + "," + patches.m.astype(str) + ")"
             textalloc.allocate(
                 ax,
-                x=patches.x,
+                x=np.clip(patches.x, *ax.get_xlim()),
                 y=patches.level,
                 text_list=list(spurlabel_text),
-                # x_scatter=spurlabel_x,
-                # y_scatter=spurlabel_y,
-                # direction="south",
-                ylims=(threshold, 0),  # seems like this doesn't work
-                xlims=self.fif,  # seems like this doesn't work
                 textcolor=list(patches.color),
-                max_distance=0.004,
-                min_distance=0.003,
+                min_distance=0.005,
                 draw_lines=False,
             )
 
@@ -596,6 +589,7 @@ class RxUp(SpectrumBase):
         ]
 
         self._annotate_axes()
+        ax = self.ax
 
         patches = self._patches
 
@@ -654,17 +648,11 @@ class RxUp(SpectrumBase):
             spurlabel_text = "(" + patches.n.astype(str) + "," + patches.m.astype(str) + ")"
             textalloc.allocate(
                 ax,
-                x=patches.x,
+                x=np.clip(patches.x, *ax.get_xlim()),
                 y=patches.level,
                 text_list=list(spurlabel_text),
-                # x_scatter=spurlabel_x,
-                # y_scatter=spurlabel_y,
-                # direction="south",
-                ylims=(threshold, 0),  # seems like this doesn't work
-                xlims=self.fif,  # seems like this doesn't work
                 textcolor=list(patches.color),
-                max_distance=0.004,
-                min_distance=0.003,
+                min_distance=0.005,
                 draw_lines=False,
             )
 
@@ -752,6 +740,7 @@ class RxDown(SpectrumBase):
         ]
 
         self._annotate_axes()
+        ax = self.ax
 
         patches = self._patches
 
@@ -812,17 +801,11 @@ class RxDown(SpectrumBase):
             spurlabel_text = "(" + patches.n.astype(str) + "," + patches.m.astype(str) + ")"
             textalloc.allocate(
                 ax,
-                x=patches.x,
+                x=np.clip(patches.x, *ax.get_xlim()),
                 y=patches.level,
                 text_list=list(spurlabel_text),
-                # x_scatter=spurlabel_x,
-                # y_scatter=spurlabel_y,
-                # direction="south",
-                ylims=(threshold, 0),  # seems like this doesn't work
-                xlims=self.frf,  # seems like this doesn't work
                 textcolor=list(patches.color),
-                max_distance=0.004,
-                min_distance=0.003,
+                min_distance=0.005,
                 draw_lines=False,
             )
 
