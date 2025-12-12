@@ -586,7 +586,7 @@ class Conversion:
 
         ### Spur Highlighting
 
-        if interleaved or nonlinterleaved:
+        if interleaved or noninterleaved:
             colors = self.__get_colormap(len(interleaved) + len(noninterleaved))
 
             data.colors = "#e6e6e6"  # set all spurs to light grey (10% black)

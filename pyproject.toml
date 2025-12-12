@@ -12,6 +12,7 @@ matplotlib = "^3.5.2"
 scikit-rf = "^1.8.0"
 colorcet = "^3.0.1"
 bokeh = "^3.1.0"
+textalloc = "^1.2.1"
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.23.1"
