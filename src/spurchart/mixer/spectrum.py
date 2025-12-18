@@ -848,7 +848,7 @@ class NormalLog:
 
         self.ax = ax
         self.fig = fig
-        self._annotate_axes()
+        self._annotate()
 
     def _annotate(self):
         ticks = [0.1, 0.2, 0.3, 0.5, 0.7, 1, 2, 3, 5, 7, 10]
