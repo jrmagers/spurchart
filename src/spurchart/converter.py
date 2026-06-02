@@ -668,9 +668,12 @@ class Conversion:
                 nco_label = rf"NCO Frequency $$f_{{NCO}}$$ [{units}]"
                 fout_label = rf"Output Frequency $$f_{{OUT}}$$ [{units}]"
             else:
-                subtitle_str = (
-                    f"f_OUT = n·f_NCO + k·f_S/M, |n| ≤ {n}, |k| ≤ {k}, M = {1} | {self.M}"
-                )
+                if self.M == 1:
+                    subtitle_str = f"f_OUT = n·f_NCO + k·f_S/M, |n| ≤ {n}, |k| ≤ {k}, M = 1"
+                else:
+                    subtitle_str = (
+                        f"f_OUT = n·f_NCO + k·f_S/M, |n| ≤ {n}, |k| ≤ {k}, M = 1 | {self.M}"
+                    )
                 nco_label = f"NCO Frequency f_NCO [{units}]"
                 fout_label = f"Output Frequency f_OUT [{units}]"
 
@@ -686,7 +689,7 @@ class Conversion:
         title_str = (
             f"{self.converter.upper()} Carrier Sweep Across Nyquist Zone {self.input_zone}: "
             + f"[{self.fc[0]},{self.fc[1]}] {units} "
-            + f"for Sample-rate of {self.fs} {units[0]}S/s"
+            + f"for Sample-rate of {self.fs} {units[0]}Sa/s"
         )
 
         graph.axis.axis_label_text_font_style = "normal"  # non-italic axis labels
