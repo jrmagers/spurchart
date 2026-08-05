@@ -38,6 +38,7 @@ class SweptBase:
     lo_if: float = 40
     in_power: float = 0
     levels: bool = True
+    legendloc: str = "right"
 
     def _annotate_axes(self):
         ax = self.ax
@@ -150,30 +151,56 @@ class SweptBase:
         # legend
 
         legend_text = [
-            "(n,m) spurs:",
+            "(n,m) spurs: ",
             equation,
             f"≥{self.threshold:0.0f} dBc, |n|≤{self.order[0]}, |m|≤{self.order[1]}",
         ]
 
-        ncol = 1
-        width_scale = 0.875
-        if self.spurs.shape[0] > 20:
-            ncol = 2
-            width_scale = 0.75
+        if self.legendloc.lower() == "right":
 
-        leg = ax.legend(
-            loc="upper left",
-            bbox_to_anchor=(1, 1),
-            ncol=ncol,
-            frameon=False,
-            fontsize="small",
-            title="\n".join(legend_text) + "\n",
-        )
-        leg._legend_box.align = "left"
+            ncol = 1
+            width_scale = 0.875
+            height_scale = 1
+
+            if self.spurs.shape[0] > 20:
+                ncol = 2
+                width_scale = 0.75
+
+            leg = ax.legend(
+                loc="upper left",
+                bbox_to_anchor=(1, 1),
+                ncol=ncol,
+                frameon=False,
+                fontsize="small",
+                title="\n".join(legend_text) + "\n",
+            )
+
+            leg._legend_box.align = "left"
+
+        elif self.legendloc.lower() == "bottom":
+
+            width_scale = 1
+            height_scale = 1  # 0.875
+            ncol = 5
+
+            # if self.spurs.shape[0] > 20:
+            #     height_scale = 0.75
+
+            leg = ax.legend(
+                loc="upper center",
+                bbox_to_anchor=(0.5, -0.15),
+                ncol=ncol,
+                frameon=False,
+                fontsize="small",
+                title=legend_text[0] + ", ".join(legend_text[1:]),
+            )
+
+        else:
+            raise ValueError
 
         # Shink current axis by width_scale
         box = ax.get_position()
-        ax.set_position([box.x0, box.y0, box.width * width_scale, box.height])
+        ax.set_position([box.x0, box.y0, box.width * width_scale, box.height * height_scale])
 
     def describe(self):
         """Docstring."""

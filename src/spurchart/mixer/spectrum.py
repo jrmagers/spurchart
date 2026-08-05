@@ -48,6 +48,7 @@ class SpectrumBase:
     threshold: float = _THRESHOLD
     units: str = _FREQUENCY_UNITS
     label: bool = True
+    legendloc: str = "right"
 
     def __post_init__(self):
         self._intermods = mixer_products(*self.order)
@@ -145,38 +146,90 @@ class SpectrumBase:
         ax.set_axisbelow(True)
         self.ax = ax
 
-    def _annotate_legend(self, legend_title):
+    def _annotate_legend(self, legend_text):
         ax = self.ax
 
         ax.legend()
 
-        if ax.get_legend() is None:
-            # legend doesn't exist
+        # if ax.get_legend() is None:
+        #     # legend doesn't exist
 
-            # make room for the legend to the right of the current axis
-            # Shink current axis by 20%
-            box = ax.get_position()
-            ax.set_position([box.x0, box.y0, box.width * 0.75, box.height])
+        #     # make room for the legend to the right of the current axis
+        #     # Shink current axis by 20%
+        #     box = ax.get_position()
+        #     ax.set_position([box.x0, box.y0, box.width * 0.75, box.height])
+
+        # else:
+        #     # legend already exists
+        #     ax.get_legend().remove()
+
+        # ncol = 1
+        # if len(ax.lines) + len(ax.patches) > 20:
+        #     ncol = 2
+
+        # leg = ax.legend(
+        #     loc="upper left",
+        #     bbox_to_anchor=(1, 1),
+        #     ncol=ncol,
+        #     fancybox=False,
+        #     shadow=False,
+        #     frameon=False,
+        #     fontsize="small",
+        #     title=legend_title,
+        # )
+        # leg._legend_box.align = "left"
+
+        # legend_text = [
+        #     "(n,m) spurs: ",
+        #     equation,
+        #     f"≥{self.threshold:0.0f} dBc, |n|≤{self.order[0]}, |m|≤{self.order[1]}",
+        # ]
+
+        if self.legendloc.lower() == "right":
+
+            ncol = 1
+            width_scale = 0.875
+            height_scale = 1
+
+            if self.spurs.shape[0] > 20:
+                ncol = 2
+                width_scale = 0.75
+
+            leg = ax.legend(
+                loc="upper left",
+                bbox_to_anchor=(1, 1),
+                ncol=ncol,
+                frameon=False,
+                fontsize="small",
+                title="\n".join(legend_text) + "\n",
+            )
+
+            leg._legend_box.align = "left"
+
+        elif self.legendloc.lower() == "bottom":
+
+            width_scale = 1
+            height_scale = 1  # 0.875
+            ncol = 4
+
+            # if self.spurs.shape[0] > 20:
+            #     height_scale = 0.75
+
+            leg = ax.legend(
+                loc="upper center",
+                bbox_to_anchor=(0.5, -0.15),
+                ncol=ncol,
+                frameon=False,
+                fontsize="small",
+                title=legend_text[0] + ", ".join(legend_text[1:]),
+            )
 
         else:
-            # legend already exists
-            ax.get_legend().remove()
+            raise ValueError
 
-        ncol = 1
-        if len(ax.lines) + len(ax.patches) > 20:
-            ncol = 2
-
-        leg = ax.legend(
-            loc="upper left",
-            bbox_to_anchor=(1, 1),
-            ncol=ncol,
-            fancybox=False,
-            shadow=False,
-            frameon=False,
-            fontsize="small",
-            title=legend_title,
-        )
-        leg._legend_box.align = "left"
+        # Shink current axis by width_scale
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0, box.width * width_scale, box.height * height_scale])
 
     def touchstone(
         self,
@@ -305,7 +358,7 @@ class TxUp(SpectrumBase):
         self.ax = ax
 
         legend_text = [
-            "(n,m) spurs:",
+            "(n,m) spurs: ",
             "n·LO+m·IF=RF",
             f"≥{threshold:0.0f} dBc, |n|≤{self.order[0]}, |m|≤{self.order[1]}",
         ]
@@ -343,7 +396,7 @@ class TxUp(SpectrumBase):
                     if patch.m == 1:
                         label = "RF = IF"
                 else:
-                    label = f"({patch.n:0.0f},{patch.m:0.0f}): {patch.rf1:0.6g} to {patch.rf2:0.6g}"
+                    label = f"({patch.n:0.0f},{patch.m:0.0f}): {patch.rf1:0.4g} to {patch.rf2:0.4g}"
 
                 rect = Rectangle(
                     xy=(patch.x, threshold),
@@ -368,11 +421,11 @@ class TxUp(SpectrumBase):
             )
 
         ax.set_title(
-            f"TX Spectrum: IF = {self.fif:0.6g} {units}, BW = {self.bw:0.6g} {units},"
-            + f" LO = {self.flo:0.6g} {units}",
+            f"TX Spectrum: IF = {self.fif:0.4g} {units}, BW = {self.bw:0.4g} {units},"
+            + f" LO = {self.flo:0.4g} {units}",
         )
 
-        self._annotate_legend("\n".join(legend_text) + "\n")
+        self._annotate_legend(legend_text)
 
 
 @dataclass
@@ -440,7 +493,7 @@ class TxDown(SpectrumBase):
         self.ax = ax
 
         legend_text = [
-            "(n,m) spurs:",
+            "(n,m) spurs: ",
             "n·LO+m·RF=IF",
             f"≥{threshold:0.0f} dBc, |n|≤{self.order[0]}, |m|≤{self.order[1]}",
         ]
@@ -477,7 +530,7 @@ class TxDown(SpectrumBase):
                         label = "IF = RF"
                 else:
                     # TODO: is this correct?
-                    label = f"({patch.n:0.0f},{patch.m:0.0f}): {patch.if1:0.6g} to {patch.if2:0.6g}"
+                    label = f"({patch.n:0.0f},{patch.m:0.0f}): {patch.if1:0.4g} to {patch.if2:0.4g}"
 
                 rect = Rectangle(
                     xy=(patch.x, threshold),
@@ -502,11 +555,11 @@ class TxDown(SpectrumBase):
             )
 
         ax.set_title(
-            f"TX Spectrum: RF = {self.frf:0.6g} {units}, BW = {self.bw:0.6g} {units},"
-            + f" LO = {self.flo:0.6g} {units}",
+            f"TX Spectrum: RF = {self.frf:0.4g} {units}, BW = {self.bw:0.4g} {units},"
+            + f" LO = {self.flo:0.4g} {units}",
         )
 
-        self._annotate_legend("\n".join(legend_text) + "\n")
+        self._annotate_legend(legend_text)
 
 
 @dataclass
@@ -583,7 +636,7 @@ class RxUp(SpectrumBase):
         self.ax = ax
 
         legend_text = [
-            "(n,m) spurs:",
+            "(n,m) spurs: ",
             "n·LO+m·IF=RF",
             f"≥{threshold:0.0f} dBc, |n|≤{self.order[0]}, |m|≤{self.order[1]}",
         ]
@@ -599,9 +652,9 @@ class RxUp(SpectrumBase):
 
                 rfband = self.frf + np.array([-self.bw, self.bw]) / 2
                 fif = rfband / patch.m
-                label = f"IF = RF/{patch.m:0.0f}: {fif[0]:0.6g} to {fif[1]:0.6g}"
+                label = f"IF = RF/{patch.m:0.0f}: {fif[0]:0.4g} to {fif[1]:0.4g}"
                 if patch.m == 1:
-                    label = f"IF = RF: {fif[0]:0.6g} to {fif[1]:0.6g}"
+                    label = f"IF = RF: {fif[0]:0.4g} to {fif[1]:0.4g}"
 
                 rect = Rectangle(
                     xy=(patch.x, threshold),
@@ -618,9 +671,9 @@ class RxUp(SpectrumBase):
                 fif = patch.if1
 
                 if patch.n == 1:
-                    label = f"LO: {fif:0.6g}"
+                    label = f"LO: {fif:0.4g}"
                 else:
-                    label = f"{patch.n:0.0f}·LO: {fif:0.6g}"
+                    label = f"{patch.n:0.0f}·LO: {fif:0.4g}"
 
                 ax.vlines(
                     fif,
@@ -632,7 +685,7 @@ class RxUp(SpectrumBase):
                 )
 
             else:
-                label = f"({patch.n:0.0f},{patch.m:0.0f}): {patch.if1:0.6g} to {patch.if2:0.6g}"
+                label = f"({patch.n:0.0f},{patch.m:0.0f}): {patch.if1:0.4g} to {patch.if2:0.4g}"
 
                 rect = Rectangle(
                     xy=(patch.x, threshold),
@@ -657,11 +710,11 @@ class RxUp(SpectrumBase):
             )
 
         ax.set_title(
-            f"RX Spectrum: RF = {self.frf:0.6g} {units}, BW = {self.bw:0.6g} {units},"
-            + f" LO = {self.flo:0.6g} {units}",
+            f"RX Spectrum: RF = {self.frf:0.4g} {units}, BW = {self.bw:0.4g} {units},"
+            + f" LO = {self.flo:0.4g} {units}",
         )
 
-        self._annotate_legend("\n".join(legend_text) + "\n")
+        self._annotate_legend(legend_text)
 
 
 @dataclass
@@ -734,7 +787,7 @@ class RxDown(SpectrumBase):
         self.ax = ax
 
         legend_text = [
-            "(n,m) spurs:",
+            "(n,m) spurs: ",
             "n·LO+m·RF=IF",
             f"≥{threshold:0.0f} dBc, |n|≤{self.order[0]}, |m|≤{self.order[1]}",
         ]
@@ -752,9 +805,9 @@ class RxDown(SpectrumBase):
                 # TODO: level is not correct for IF/1: Need to incorporate RF-IF isolation
                 ifband = self.fif + np.array([-self.bw, self.bw]) / 2
                 rf = ifband / patch.m
-                label = f"RF = IF/{patch.m:0.0f}: {rf[0]:0.6g} to {rf[1]:0.6g}"
+                label = f"RF = IF/{patch.m:0.0f}: {rf[0]:0.4g} to {rf[1]:0.4g}"
                 if patch.m == 1:
-                    label = f"RF = IF: {rf[0]:0.6g} to {rf[1]:0.6g}"
+                    label = f"RF = IF: {rf[0]:0.4g} to {rf[1]:0.4g}"
 
                 rect = Rectangle(
                     xy=(patch.x, threshold),
@@ -771,9 +824,9 @@ class RxDown(SpectrumBase):
                 rf = patch.rf1
 
                 if patch.n == 1:
-                    label = f"LO: {rf:0.6g}"
+                    label = f"LO: {rf:0.4g}"
                 else:
-                    label = f"{patch.n:0.0f}·LO: {rf:0.6g}"
+                    label = f"{patch.n:0.0f}·LO: {rf:0.4g}"
 
                 ax.vlines(
                     rf,
@@ -785,7 +838,7 @@ class RxDown(SpectrumBase):
                 )
 
             else:
-                label = f"({patch.n:0.0f},{patch.m:0.0f}): {patch.rf1:0.6g} to {patch.rf2:0.6g}"
+                label = f"({patch.n:0.0f},{patch.m:0.0f}): {patch.rf1:0.4g} to {patch.rf2:0.4g}"
 
                 rect = Rectangle(
                     xy=(patch.x, threshold),
@@ -810,8 +863,8 @@ class RxDown(SpectrumBase):
             )
 
         ax.set_title(
-            f"RX Spectrum: IF = {self.fif:0.6g} {units}, BW = {self.bw:0.6g} {units},"
-            + f" LO = {self.flo:0.6g} {units}",
+            f"RX Spectrum: IF = {self.fif:0.4g} {units}, BW = {self.bw:0.4g} {units},"
+            + f" LO = {self.flo:0.4g} {units}",
         )
 
-        self._annotate_legend("\n".join(legend_text) + "\n")
+        self._annotate_legend(legend_text)
