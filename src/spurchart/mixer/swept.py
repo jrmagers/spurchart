@@ -712,3 +712,75 @@ class NormalLog:
         ax.grid()
         leg = ax.legend(ncol=4, loc="upper left", fontsize="x-small")
         leg._legend_box.align = "left"
+
+
+@dataclass
+class NormalLogNew:
+    """Create a normalized logrithmic spurchart."""
+
+    # todo: change this to an interactive bokeh plot
+    order: tuple = (5, 1)
+    lo_power: float = 20
+    bw: float = 2
+    fif: float = 8
+
+    def __post_init__(self):
+        intermods = mixer_products(*self.order)
+        spurs = pd.DataFrame(intermods, columns=["n", "m"])
+        spurs["level"] = [henderson(n, m) for n, m in intermods]
+        colormap = getattr(colorcet, "glasbey")
+        spurs["color"] = colormap[: len(spurs)]
+
+        self.spurs = spurs
+
+        self._plot()
+
+    def _plot(self):
+        rf = np.logspace(np.log10(0.1), np.log10(10), num=200)
+
+        fig, ax = plt.subplots(1, figsize=(8, 8), dpi=100)
+
+        for _, spur in self.spurs.iterrows():
+            if spur.n != 0:
+
+                lo_upper = -spur.m / spur.n * rf + (1 + self.bw / (2 * self.fif)) / spur.n
+                lo_lower = -spur.m / spur.n * rf + (1 - self.bw / (2 * self.fif)) / spur.n
+                lo_mid = -spur.m / spur.n * rf + 1 / spur.n
+
+                p = ax.fill_between(
+                    rf,
+                    lo_upper,
+                    lo_lower,
+                    label=f"({spur.n},{spur.m})",
+                    color=spur.color,
+                    alpha=0.5,
+                    zorder=10,
+                )
+
+                ax.loglog(rf, lo_mid, label="_", color=spur.color)
+
+        self.ax = ax
+        self.fig = fig
+        self._annotate()
+
+    def _annotate(self):
+        ticks = [0.1, 0.2, 0.3, 0.5, 0.7, 1, 2, 3, 5, 7, 10]
+        limits = (ticks[0], ticks[-1])
+
+        ax = self.ax
+        # TODO: IF/n or nLO depending on tx or rx
+        ax.loglog(limits, limits, label="LO rerad")
+        ax.vlines(1, *limits, label="RF feedthru")
+
+        ax.set_xticks(ticks)
+        ax.set_yticks(ticks)
+        ax.set_xticklabels(ticks)
+        ax.set_yticklabels(ticks)
+        ax.set_xlim(*limits)
+        ax.set_ylim(*limits)
+        ax.set_xlabel("RF/IF")
+        ax.set_ylabel("LO/IF")
+        ax.set_title(f"Normalized Spurs: |n|≤{self.order[0]}, |m|≤{self.order[1]}")
+        ax.grid()
+        leg = ax.legend(ncol=4, loc="upper left", fontsize="x-small")
+        leg._legend_box.align = "left"
