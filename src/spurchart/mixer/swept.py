@@ -38,7 +38,7 @@ class SweptBase:
     lo_if: float = 40
     in_power: float = 0
     levels: bool = True
-    legendloc: str = "right"
+    legendloc: str = "bottom"
 
     def _annotate_axes(self):
         ax = self.ax

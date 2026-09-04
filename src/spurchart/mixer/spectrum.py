@@ -48,7 +48,7 @@ class SpectrumBase:
     threshold: float = _THRESHOLD
     units: str = _FREQUENCY_UNITS
     label: bool = True
-    legendloc: str = "right"
+    legendloc: str = "bottom"
 
     def __post_init__(self):
         self._intermods = mixer_products(*self.order)
