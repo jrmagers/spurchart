@@ -127,17 +127,19 @@ class SpectrumBase:
 
         if xrange * k <= 10 * k:
             step = 1
+            minor_tick_step = 1
             ax.grid(visible=True, which="minor", axis="x", color=_LIGHT_GRAY)
 
         elif 10 * k > xrange >= 50 * k:
             step = 5
+            minor_tick_step = 1
             ax.grid(visible=True, which="minor", axis="x", color=_LIGHT_GRAY)
 
         else:
             step = 10
+            minor_tick_step = 1
 
-        ax.xaxis.set_minor_locator(ticker.AutoMinorLocator(step))
-        # ax.xaxis.set_major_locator(ticker.MultipleLocator(step / 2))
+        ax.xaxis.set_minor_locator(ticker.MultipleLocator(minor_tick_step))
 
         # y-axis
 
