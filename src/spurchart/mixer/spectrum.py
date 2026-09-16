@@ -43,8 +43,8 @@ class SpectrumBase:
     order: Tuple[int, int] = (5, 5)
     gain: float = -8
     rf_if: float = 25
-    lo_rf: float = 40
-    lo_if: float = 40
+    lo_rf: float = 10.45757
+    lo_if: float = 10.45757
     threshold: float = _THRESHOLD
     units: str = _FREQUENCY_UNITS
     label: bool = True
@@ -294,9 +294,9 @@ class TxUp(SpectrumBase):
     rf_if : float, optional
         RF to IF isolation of the mixer in dB. Default is 25 dB.
     lo_rf : float, optional
-        LO to RF isolation of the mixer in dB. Default is 40 dB.
+        LO to RF isolation of the mixer in dB. Default is 10.45757 dB.
     lo_if : float, optional
-        LO to IF isolation of the mixer in dB. Default is 40 dB.
+        LO to IF isolation of the mixer in dB. Default is 10.45757 dB.
     threshold : float, optional
         Minimum spur level to plot (minimum of the y-axis) in dBc. Default is -100 dBc.
     units : str, optional
@@ -314,7 +314,10 @@ class TxUp(SpectrumBase):
         spurs = self.spurs
 
         spurs["level"] = [
-            henderson(n, m, Plo=self.lo_power, Prf=self.if_power) for n, m in self._intermods
+            henderson(
+                n, m, Plo=self.lo_power, Prf=self.if_power, lo_iso=self.lo_if, rf_iso=self.lo_rf
+            )
+            for n, m in self._intermods
         ]
 
         spurs.loc[spurs[(spurs.n == 0) & (spurs.m == 1)].index, "level"] = _if_supression(
@@ -449,7 +452,10 @@ class TxDown(SpectrumBase):
         spurs = self.spurs
 
         spurs["level"] = [
-            henderson(n, m, Plo=self.lo_power, Prf=self.rf_power) for n, m in self._intermods
+            henderson(
+                n, m, Plo=self.lo_power, Prf=self.rf_power, lo_iso=self.lo_if, rf_iso=self.lo_rf
+            )
+            for n, m in self._intermods
         ]
 
         spurs.loc[spurs[(spurs.n == 0) & (spurs.m == 1)].index, "level"] = _if_supression(
@@ -583,7 +589,10 @@ class RxUp(SpectrumBase):
         spurs = self.spurs
 
         spurs["level"] = [
-            henderson(n, m, Plo=self.lo_power, Prf=self.if_power) for n, m in self._intermods
+            henderson(
+                n, m, Plo=self.lo_power, Prf=self.if_power, lo_iso=self.lo_if, rf_iso=self.lo_rf
+            )
+            for n, m in self._intermods
         ]
 
         spurs.loc[spurs[(spurs.n == 0) & (spurs.m == 1)].index, "level"] = _if_supression(
@@ -738,7 +747,10 @@ class RxDown(SpectrumBase):
         spurs = self.spurs
 
         spurs["level"] = [
-            henderson(n, m, Plo=self.lo_power, Prf=self.rf_power) for n, m in self._intermods
+            henderson(
+                n, m, Plo=self.lo_power, Prf=self.rf_power, lo_iso=self.lo_if, rf_iso=self.lo_rf
+            )
+            for n, m in self._intermods
         ]
 
         spurs.loc[spurs[(spurs.n == 0) & (spurs.m == 1)].index, "level"] = _if_supression(

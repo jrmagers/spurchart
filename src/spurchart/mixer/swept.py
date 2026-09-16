@@ -34,8 +34,8 @@ class SweptBase:
     units: str = _FREQUENCY_UNITS
     gain: float = -8
     rf_if: float = 25
-    lo_rf: float = 40
-    lo_if: float = 40
+    lo_rf: float = 10.45757
+    lo_if: float = 10.45757
     in_power: float = 0
     levels: bool = True
     legendloc: str = "bottom"
@@ -395,7 +395,10 @@ class SweptTransmit(SweptBase):
         intermods = mixer_products(*self.order)
         spurs = pd.DataFrame(intermods, columns=["n", "m"])
         spurs["level"] = [
-            henderson(n, m, Plo=self.lo_power, Prf=self.in_power) for n, m in intermods
+            henderson(
+                n, m, Plo=self.lo_power, Prf=self.in_power, lo_iso=self.lo_if, rf_iso=self.lo_rf
+            )
+            for n, m in intermods
         ]
 
         spurs.loc[spurs[(spurs.n == 0) & (spurs.m == 1)].index, "level"] = _if_supression(
@@ -635,7 +638,10 @@ class SweptReceive(SweptBase):
         intermods = mixer_products(*self.order)
         spurs = pd.DataFrame(intermods, columns=["n", "m"])
         spurs["level"] = [
-            henderson(n, m, Plo=self.lo_power, Prf=self.in_power) for n, m in intermods
+            henderson(
+                n, m, Plo=self.lo_power, Prf=self.in_power, lo_iso=self.lo_if, rf_iso=self.lo_rf
+            )
+            for n, m in intermods
         ]
 
         spurs.loc[spurs[(spurs.n == 0) & (spurs.m == 1)].index, "level"] = _if_supression(
@@ -696,7 +702,7 @@ class NormalLog:
     def __post_init__(self):
         intermods = mixer_products(*self.order)
         spurs = pd.DataFrame(intermods, columns=["n", "m"])
-        spurs["level"] = [henderson(n, m) for n, m in intermods]
+        spurs["level"] = [henderson(n=n, m=m, Plo=lo_power) for n, m in intermods]
         colormap = getattr(colorcet, "glasbey")
         spurs["color"] = colormap[: len(spurs)]
 
