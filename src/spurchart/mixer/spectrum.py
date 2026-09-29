@@ -45,6 +45,7 @@ class SpectrumBase:
     rf_if: float = 25
     lo_rf: float = 10.45757
     lo_if: float = 10.45757
+    d: tuple = (0.85, 0.95, 1.05)
     threshold: float = _THRESHOLD
     units: str = _FREQUENCY_UNITS
     label: bool = True
@@ -315,7 +316,13 @@ class TxUp(SpectrumBase):
 
         spurs["level"] = [
             henderson(
-                n, m, Plo=self.lo_power, Prf=self.if_power, lo_iso=self.lo_if, rf_iso=self.lo_rf
+                n,
+                m,
+                Plo=self.lo_power,
+                Prf=self.if_power,
+                lo_iso=self.lo_if,
+                rf_iso=self.lo_rf,
+                d=self.d,
             )
             for n, m in self._intermods
         ]
@@ -453,7 +460,13 @@ class TxDown(SpectrumBase):
 
         spurs["level"] = [
             henderson(
-                n, m, Plo=self.lo_power, Prf=self.rf_power, lo_iso=self.lo_if, rf_iso=self.lo_rf
+                n,
+                m,
+                Plo=self.lo_power,
+                Prf=self.rf_power,
+                lo_iso=self.lo_if,
+                rf_iso=self.lo_rf,
+                d=self.d,
             )
             for n, m in self._intermods
         ]
@@ -590,7 +603,13 @@ class RxUp(SpectrumBase):
 
         spurs["level"] = [
             henderson(
-                n, m, Plo=self.lo_power, Prf=self.if_power, lo_iso=self.lo_if, rf_iso=self.lo_rf
+                n,
+                m,
+                Plo=self.lo_power,
+                Prf=self.if_power,
+                lo_iso=self.lo_if,
+                rf_iso=self.lo_rf,
+                d=self.d,
             )
             for n, m in self._intermods
         ]
@@ -748,7 +767,13 @@ class RxDown(SpectrumBase):
 
         spurs["level"] = [
             henderson(
-                n, m, Plo=self.lo_power, Prf=self.rf_power, lo_iso=self.lo_if, rf_iso=self.lo_rf
+                n,
+                m,
+                Plo=self.lo_power,
+                Prf=self.rf_power,
+                lo_iso=self.lo_if,
+                rf_iso=self.lo_rf,
+                d=self.d,
             )
             for n, m in self._intermods
         ]
