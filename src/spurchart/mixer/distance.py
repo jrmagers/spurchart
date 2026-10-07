@@ -98,9 +98,7 @@ class SpurDistanceBase(ABC):
                 alpha=0.5,
             )
             # maxdistance_per_spur[spur] = np.vstack((abs(distance1),abs(distance2))).max(axis=0)
-            maxdistance_per_spur[spur] = maxdistance = np.maximum(
-                abs(distance1), abs(distance2)
-            )
+            maxdistance_per_spur[spur] = maxdistance = np.maximum(abs(distance1), abs(distance2))
             ax.plot(frf, maxdistance_per_spur[spur], color=color, label=f"({n},{m})")
 
         mindistance = np.vstack([*maxdistance_per_spur.values()]).min(axis=0)
@@ -124,7 +122,10 @@ class SpurDistanceTx(SpurDistanceBase):
 
     @staticmethod
     def spur_extents(product, flo, fif, bw):
-        """Compute the extents of a mixer intermodulation product in a transmitter."""
+        """Compute the extents of a mixer intermodulation product in a transmitter.
+
+        NOTE: this function has been copied to rf.frequencyplanning module. Remove this one?
+        """
         n, m = product
 
         rf_edge_1 = n * flo + m * (fif + bw / 2)
@@ -152,7 +153,10 @@ class SpurDistanceRx(SpurDistanceBase):
 
     @staticmethod
     def spur_extents(product, flo, fif, bw):
-        """Compute the extents of a mixer intermodulation product in a receiver."""
+        """Compute the extents of a mixer intermodulation product in a receiver.
+
+        NOTE: this function has been copied to rf.frequencyplanning module. Remove this one?
+        """
         n, m = product
 
         rf_edge_1 = (fif + bw / 2 - n * flo) / m
